@@ -18,7 +18,8 @@ app.use(helmet()); // sets secure HTTP headers【12†L169-L178】
 app.disable('x-powered-by'); // reduce fingerprinting【12†L220-L228】
 
 // Enable CORS for frontend domain (adjust in production)
-app.use(cors({ origin: 'http://localhost:8081' })); // allow only our frontend origin【25†L211-L218】
+const allowedOrigins = [process.env.FRONTEND_URL, 'https://abdbarber.netlify.app'].filter(Boolean);
+app.use(cors({ origin: allowedOrigins })); // allow only our frontend origin【25†L211-L218】
 app.use(express.json()); 
 
 // Rate limiting to prevent abuse【23†L181-L184】
