@@ -3,6 +3,8 @@ const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
+const fs = require('fs');
+const path = require('path');
 require('dotenv').config();
 
 const authRoutes = require('./routes/auth');
@@ -12,6 +14,29 @@ const bookingsRoutes = require('./routes/bookings');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
+
+// Auto-run migrations on startup
+const pool = require('./config/db');
+const schemaPath = path.join(__dirname, 'migrations', 'schema.sql');
+const seedPath = path.join(__dirname, 'migrations', 'seed.sql');
+
+async function runMigrations() {
+  try {
+    const schemaSQL = fs.readFileSync(schemaPath, 'utf8');
+    const seedSQL = fs.readFileSync(seedPath, 'utf8');
+    
+    await pool.query(schemaSQL);
+    console.log('✓ Schema created');
+    await pool.query(seedSQL);
+    console.log('✓ Data seeded');
+  } catch (err) {
+    if (!err.message.includes('already exists')) {
+      console.error('Migration error:', err);
+    }
+  }
+}
+
+runMigrations();
 
 // Security middleware
 app.use(helmet()); // sets secure HTTP headers【12†L169-L178】
