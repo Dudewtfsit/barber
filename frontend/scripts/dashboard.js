@@ -8,8 +8,70 @@ if (!token) {
 const payload = JSON.parse(atob(token.split('.')[1]));
 const userRole = payload.role;
 
-// Barber dashboard functionality
+// Update navigation based on authentication status
+function updateNavigation() {
+  const navLinks = document.getElementById('nav-links');
+  const loginLink = document.getElementById('login-link');
+  const registerLink = document.getElementById('register-link');
+  const logoutLink = document.getElementById('logout-link');
+  const dashboardLink = document.getElementById('dashboard-link');
+
+  if (token) {
+    loginLink.style.display = 'none';
+    registerLink.style.display = 'none';
+    logoutLink.style.display = 'inline';
+    dashboardLink.style.display = 'inline';
+
+    if (userRole === 'barber') {
+      dashboardLink.textContent = 'Barber Dashboard';
+    } else {
+      dashboardLink.textContent = 'My Appointments';
+    }
+  } else {
+    loginLink.style.display = 'inline';
+    registerLink.style.display = 'inline';
+    logoutLink.style.display = 'none';
+    dashboardLink.style.display = 'none';
+  }
+}
+
+// Navigation event listeners
+document.getElementById('home-link').addEventListener('click', (e) => {
+  e.preventDefault();
+  window.location = 'index.html';
+});
+
+document.getElementById('booking-link').addEventListener('click', (e) => {
+  e.preventDefault();
+  window.location = 'booking.html';
+});
+
+document.getElementById('login-link').addEventListener('click', (e) => {
+  e.preventDefault();
+  window.location = 'login.html';
+});
+
+document.getElementById('register-link').addEventListener('click', (e) => {
+  e.preventDefault();
+  window.location = 'register.html';
+});
+
+document.getElementById('logout-link').addEventListener('click', (e) => {
+  e.preventDefault();
+  localStorage.removeItem('token');
+  window.location = 'index.html';
+});
+
+// Initialize dashboard based on user role
 if (userRole === 'barber') {
+  document.getElementById('barber-dashboard').style.display = 'block';
+  initializeBarberDashboard();
+} else if (userRole === 'client') {
+  document.getElementById('client-dashboard').style.display = 'block';
+  initializeClientDashboard();
+}
+
+function initializeBarberDashboard() {
   // Shop management
   const shopForm = document.getElementById('shopForm');
   if (shopForm) {
@@ -82,11 +144,11 @@ if (userRole === 'barber') {
   // Load barber data
   loadShop();
   loadServices();
-  loadAppointments();
+  loadBarberAppointments();
+}
 
-} else if (userRole === 'client') {
-  // Client dashboard - redirect to booking page or show client-specific content
-  window.location = 'index.html';
+function initializeClientDashboard() {
+  loadClientAppointments();
 }
 
 // Load shop info for barber
@@ -120,11 +182,22 @@ async function loadServices() {
       const list = document.getElementById('services-list');
       if (list) {
         list.innerHTML = '';
-        services.forEach(s => {
-          const li = document.createElement('li');
-          li.textContent = `${s.name} - $${s.price} (${s.duration_minutes} min)`;
-          list.appendChild(li);
-        });
+        if (services.length === 0) {
+          list.innerHTML = '<p>No services added yet.</p>';
+        } else {
+          services.forEach(s => {
+            const serviceItem = document.createElement('div');
+            serviceItem.className = 'service-item';
+            serviceItem.innerHTML = `
+              <div>
+                <h4>${s.name}</h4>
+                <p>$${s.price} - ${s.duration_minutes} minutes</p>
+              </div>
+              <button class="btn btn-danger" onclick="deleteService(${s.id})">Delete</button>
+            `;
+            list.appendChild(serviceItem);
+          });
+        }
       }
     }
   } catch (error) {
@@ -132,8 +205,29 @@ async function loadServices() {
   }
 }
 
+// Delete service
+async function deleteService(serviceId) {
+  if (!confirm('Are you sure you want to delete this service?')) return;
+
+  try {
+    const res = await fetch(`https://barber-1-ovpr.onrender.com/api/services/${serviceId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (res.ok) {
+      alert('Service deleted successfully');
+      loadServices(); // Refresh list
+    } else {
+      alert('Error deleting service');
+    }
+  } catch (error) {
+    console.error('Error deleting service:', error);
+    alert('Error deleting service');
+  }
+}
+
 // Load appointments for barber
-async function loadAppointments() {
+async function loadBarberAppointments() {
   try {
     const res = await fetch('https://barber-1-ovpr.onrender.com/api/appointments', {
       headers: { 'Authorization': 'Bearer ' + token }
@@ -143,16 +237,65 @@ async function loadAppointments() {
       const list = document.getElementById('appointments-list');
       if (list) {
         list.innerHTML = '';
-        appointments.forEach(a => {
-          const li = document.createElement('li');
-          li.innerHTML = `
-            <strong>${a.service_name}</strong> - ${a.client_name}<br>
-            ${new Date(a.start_time).toLocaleString()} - ${new Date(a.end_time).toLocaleString()}<br>
-            Status: ${a.status}
-            ${a.status === 'booked' ? `<button onclick="updateAppointmentStatus(${a.id}, 'done')">Mark Done</button> <button onclick="cancelAppointment(${a.id})">Cancel</button>` : ''}
-          `;
-          list.appendChild(li);
-        });
+        if (appointments.length === 0) {
+          list.innerHTML = '<p>No appointments scheduled.</p>';
+        } else {
+          appointments.forEach(a => {
+            const appointmentItem = document.createElement('div');
+            appointmentItem.className = 'appointment-item';
+            appointmentItem.innerHTML = `
+              <h4>${a.service_name} - ${a.client_name}</h4>
+              <p><strong>Date:</strong> ${new Date(a.start_time).toLocaleDateString()}</p>
+              <p><strong>Time:</strong> ${new Date(a.start_time).toLocaleTimeString()} - ${new Date(a.end_time).toLocaleTimeString()}</p>
+              <p><strong>Status:</strong> ${a.status}</p>
+              <div>
+                ${a.status === 'booked' ? `
+                  <button class="btn btn-primary" onclick="updateAppointmentStatus(${a.id}, 'done')">Mark Done</button>
+                  <button class="btn btn-danger" onclick="cancelAppointment(${a.id})">Cancel</button>
+                ` : ''}
+              </div>
+            `;
+            list.appendChild(appointmentItem);
+          });
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error loading appointments:', error);
+  }
+}
+
+// Load appointments for client
+async function loadClientAppointments() {
+  try {
+    const res = await fetch('https://barber-1-ovpr.onrender.com/api/appointments', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (res.ok) {
+      const appointments = await res.json();
+      const list = document.getElementById('client-appointments-list');
+      if (list) {
+        list.innerHTML = '';
+        if (appointments.length === 0) {
+          list.innerHTML = '<p>You have no appointments scheduled.</p>';
+        } else {
+          appointments.forEach(a => {
+            const appointmentItem = document.createElement('div');
+            appointmentItem.className = 'appointment-item';
+            appointmentItem.innerHTML = `
+              <h4>${a.service_name} at ${a.shop_name}</h4>
+              <p><strong>Date:</strong> ${new Date(a.start_time).toLocaleDateString()}</p>
+              <p><strong>Time:</strong> ${new Date(a.start_time).toLocaleTimeString()} - ${new Date(a.end_time).toLocaleTimeString()}</p>
+              <p><strong>Status:</strong> ${a.status}</p>
+              <div>
+                ${a.status === 'booked' ? `
+                  <button class="btn btn-danger" onclick="cancelClientAppointment(${a.id})">Cancel Appointment</button>
+                ` : ''}
+              </div>
+            `;
+            list.appendChild(appointmentItem);
+          });
+        }
       }
     }
   } catch (error) {
@@ -163,15 +306,18 @@ async function loadAppointments() {
 // Update appointment status (barber only)
 async function updateAppointmentStatus(appointmentId, status) {
   try {
-    const res = await fetch(`https://barber-1-ovpr.onrender.com/api/appointments/${appointmentId}/cancel`, {
+    const res = await fetch(`https://barber-1-ovpr.onrender.com/api/appointments/${appointmentId}/status`, {
       method: 'PUT',
-      headers: { 'Authorization': 'Bearer ' + token },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
       body: JSON.stringify({ status })
     });
     const data = await res.json();
     if (res.ok) {
       alert(`Appointment marked as ${status}`);
-      loadAppointments(); // Refresh list
+      loadBarberAppointments(); // Refresh list
     } else {
       alert(data.message || 'Update failed');
     }
@@ -193,7 +339,7 @@ async function cancelAppointment(appointmentId) {
     const data = await res.json();
     if (res.ok) {
       alert('Appointment cancelled successfully');
-      loadAppointments(); // Refresh list
+      loadBarberAppointments(); // Refresh list
     } else {
       alert(data.message || 'Cancellation failed');
     }
@@ -202,3 +348,28 @@ async function cancelAppointment(appointmentId) {
     alert('Cancellation failed');
   }
 }
+
+// Cancel appointment (client)
+async function cancelClientAppointment(appointmentId) {
+  if (!confirm('Are you sure you want to cancel this appointment?')) return;
+
+  try {
+    const res = await fetch(`https://barber-1-ovpr.onrender.com/api/appointments/${appointmentId}/cancel`, {
+      method: 'PUT',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const data = await res.json();
+    if (res.ok) {
+      alert('Appointment cancelled successfully');
+      loadClientAppointments(); // Refresh list
+    } else {
+      alert(data.message || 'Cancellation failed');
+    }
+  } catch (error) {
+    console.error('Error cancelling:', error);
+    alert('Cancellation failed');
+  }
+}
+
+// Initialize navigation
+updateNavigation();

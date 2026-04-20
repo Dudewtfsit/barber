@@ -108,21 +108,110 @@ router.post('/book',
     }
 });
 
-// (Optional) Barber can view appointments (booking list)
-router.get('/appointments', authenticateToken, authorizeRoles('barber'), async (req, res) => {
+// Get appointments (both barber and client)
+router.get('/appointments', authenticateToken, async (req, res) => {
   const userId = req.user.id;
+  const userRole = req.user.role;
+
   try {
-    const shopResult = await pool.query('SELECT id FROM barber_shops WHERE owner_id = $1', [userId]);
-    if (shopResult.rows.length === 0) return res.json([]);
-    const shopId = shopResult.rows[0].id;
-    const appointmentsResult = await pool.query(
-      'SELECT a.*, u.name AS client_name, s.name AS service_name FROM appointments a ' +
-      'JOIN users u ON a.client_id = u.id ' +
-      'JOIN services s ON a.service_id = s.id ' +
-      'WHERE a.shop_id = $1 ORDER BY a.start_time',
-      [shopId]
-    );
+    let query, params;
+
+    if (userRole === 'barber') {
+      // Barber sees appointments for their shop
+      const shopResult = await pool.query('SELECT id FROM barber_shops WHERE owner_id = $1', [userId]);
+      if (shopResult.rows.length === 0) return res.json([]);
+      const shopId = shopResult.rows[0].id;
+      query = 'SELECT a.*, u.name AS client_name, s.name AS service_name FROM appointments a ' +
+              'JOIN users u ON a.client_id = u.id ' +
+              'JOIN services s ON a.service_id = s.id ' +
+              'WHERE a.shop_id = $1 ORDER BY a.start_time';
+      params = [shopId];
+    } else if (userRole === 'client') {
+      // Client sees their own appointments
+      query = 'SELECT a.*, bs.name AS shop_name, s.name AS service_name FROM appointments a ' +
+              'JOIN barber_shops bs ON a.shop_id = bs.id ' +
+              'JOIN services s ON a.service_id = s.id ' +
+              'WHERE a.client_id = $1 ORDER BY a.start_time';
+      params = [userId];
+    } else {
+      return res.status(403).json({ message: 'Invalid role' });
+    }
+
+    const appointmentsResult = await pool.query(query, params);
     res.json(appointmentsResult.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update appointment status (barber only)
+router.put('/appointments/:id/status', authenticateToken, authorizeRoles('barber'), async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  const userId = req.user.id;
+
+  if (!['booked', 'done', 'cancelled'].includes(status)) {
+    return res.status(400).json({ message: 'Invalid status' });
+  }
+
+  try {
+    // Verify barber owns the shop for this appointment
+    const shopResult = await pool.query('SELECT id FROM barber_shops WHERE owner_id = $1', [userId]);
+    if (shopResult.rows.length === 0) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+    const shopId = shopResult.rows[0].id;
+
+    const result = await pool.query(
+      'UPDATE appointments SET status = $1 WHERE id = $2 AND shop_id = $3 RETURNING *',
+      [status, id, shopId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Appointment not found' });
+    }
+
+    res.json({ message: 'Appointment updated' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Cancel appointment (client or barber)
+router.put('/appointments/:id/cancel', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user.id;
+  const userRole = req.user.role;
+
+  try {
+    let query, params;
+
+    if (userRole === 'client') {
+      // Client can only cancel their own appointments
+      query = 'UPDATE appointments SET status = \'cancelled\' WHERE id = $1 AND client_id = $2 RETURNING *';
+      params = [id, userId];
+    } else if (userRole === 'barber') {
+      // Barber can cancel appointments for their shop
+      const shopResult = await pool.query('SELECT id FROM barber_shops WHERE owner_id = $1', [userId]);
+      if (shopResult.rows.length === 0) {
+        return res.status(403).json({ message: 'Not authorized' });
+      }
+      const shopId = shopResult.rows[0].id;
+      query = 'UPDATE appointments SET status = \'cancelled\' WHERE id = $1 AND shop_id = $2 RETURNING *';
+      params = [id, shopId];
+    } else {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    const result = await pool.query(query, params);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Appointment not found' });
+    }
+
+    res.json({ message: 'Appointment cancelled' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });

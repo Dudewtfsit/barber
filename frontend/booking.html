@@ -3,16 +3,78 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Book Appointment - Barber Booking</title>
+  <title>Book Appointment - BarberBook</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <h1 class="nav-logo">BarberBook</h1>
+      <div class="nav-links" id="nav-links">
+        <a href="#" id="home-link">Home</a>
+        <a href="#" id="booking-link">Book Appointment</a>
+        <a href="#" id="dashboard-link" style="display: none;">Dashboard</a>
+        <a href="#" id="login-link">Login</a>
+        <a href="#" id="register-link">Register</a>
+        <a href="#" id="logout-link" style="display: none;">Logout</a>
+      </div>
+    </div>
+  </nav>
+
   <div class="container">
     <div class="card">
       <h2>Book an Appointment</h2>
-      <div id="shops-list"></div>
+
+      <!-- Step 1: Shop Selection -->
+      <div id="shop-selection" class="booking-step">
+        <h3>Select a Barber Shop</h3>
+        <div id="shops-list" class="shops-grid">
+          <!-- Shops will be loaded here -->
+        </div>
+      </div>
+
+      <!-- Step 2: Service Selection -->
+      <div id="service-selection" class="booking-step" style="display: none;">
+        <h3>Select a Service</h3>
+        <div id="services-list">
+          <!-- Services will be loaded here -->
+        </div>
+      </div>
+
+      <!-- Step 3: Date and Time Selection -->
+      <div id="datetime-selection" class="booking-step" style="display: none;">
+        <h3>Select Date and Time</h3>
+        <div class="form-group">
+          <label for="appointment-date">Date:</label>
+          <input type="date" id="appointment-date" required>
+        </div>
+        <div class="form-group">
+          <label for="appointment-time">Time:</label>
+          <select id="appointment-time" required>
+            <option value="">Select a time</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Step 4: Confirmation -->
+      <div id="confirmation" class="booking-step" style="display: none;">
+        <h3>Confirm Your Appointment</h3>
+        <div id="booking-summary">
+          <!-- Booking details will be shown here -->
+        </div>
+        <button class="btn btn-primary" id="confirm-booking">Confirm Booking</button>
+        <button class="btn btn-secondary" id="back-to-datetime">Back</button>
+      </div>
+
+      <!-- Navigation Buttons -->
+      <div class="booking-navigation" style="display: none;">
+        <button class="btn btn-secondary" id="prev-step" style="display: none;">Previous</button>
+        <button class="btn btn-primary" id="next-step">Next</button>
+      </div>
     </div>
   </div>
+
+  <script src="scripts/auth.js"></script>
   <script src="scripts/booking.js"></script>
 </body>
 </html>

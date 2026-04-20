@@ -3,60 +3,90 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard - Barber Booking</title>
+  <title>Dashboard - BarberBook</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <h1 class="nav-logo">BarberBook</h1>
+      <div class="nav-links" id="nav-links">
+        <a href="#" id="home-link">Home</a>
+        <a href="#" id="booking-link">Book Appointment</a>
+        <a href="#" id="dashboard-link" style="display: none;">Dashboard</a>
+        <a href="#" id="login-link">Login</a>
+        <a href="#" id="register-link">Register</a>
+        <a href="#" id="logout-link" style="display: none;">Logout</a>
+      </div>
+    </div>
+  </nav>
+
   <div class="container">
-    <div class="card">
-      <h2>Barber Dashboard</h2>
-      <div id="shop-section">
-        <h3>Create Your Shop</h3>
-        <form id="shopForm">
-          <div class="form-group">
-            <label for="shop-name">Shop Name:</label>
-            <input type="text" id="shop-name" required>
-          </div>
-          <div class="form-group">
-            <label for="shop-address">Address:</label>
-            <input type="text" id="shop-address" required>
-          </div>
-          <div class="form-group">
-            <label for="shop-city">City:</label>
-            <input type="text" id="shop-city" required>
-          </div>
-          <div class="form-group">
-            <label for="shop-state">State:</label>
-            <input type="text" id="shop-state" required>
-          </div>
-          <button type="submit" class="btn">Create Shop</button>
-        </form>
+    <!-- Barber Dashboard -->
+    <div id="barber-dashboard" style="display: none;">
+      <div class="card">
+        <h2>Barber Dashboard</h2>
+
+        <div id="shop-section">
+          <h3>Your Shop</h3>
+          <form id="shopForm">
+            <div class="form-group">
+              <label for="shop-name">Shop Name:</label>
+              <input type="text" id="shop-name" required>
+            </div>
+            <div class="form-group">
+              <label for="shop-address">Address:</label>
+              <input type="text" id="shop-address" required>
+            </div>
+            <div class="form-group">
+              <label for="shop-city">City:</label>
+              <input type="text" id="shop-city" required>
+            </div>
+            <div class="form-group">
+              <label for="shop-state">State:</label>
+              <input type="text" id="shop-state" required>
+            </div>
+            <button type="submit" class="btn">Save Shop</button>
+          </form>
+        </div>
+
+        <div id="services-section">
+          <h3>Your Services</h3>
+          <form id="serviceForm">
+            <div class="form-group">
+              <label for="service-name">Service Name:</label>
+              <input type="text" id="service-name" required>
+            </div>
+            <div class="form-group">
+              <label for="service-price">Price:</label>
+              <input type="number" id="service-price" step="0.01" required>
+            </div>
+            <div class="form-group">
+              <label for="service-duration">Duration (minutes):</label>
+              <input type="number" id="service-duration" required>
+            </div>
+            <button type="submit" class="btn">Add Service</button>
+          </form>
+          <div id="services-list"></div>
+        </div>
+
+        <div id="appointments-section">
+          <h3>Today's Appointments</h3>
+          <div id="appointments-list"></div>
+        </div>
       </div>
-      <div id="services-section">
-        <h3>Add Services</h3>
-        <form id="serviceForm">
-          <div class="form-group">
-            <label for="service-name">Service Name:</label>
-            <input type="text" id="service-name" required>
-          </div>
-          <div class="form-group">
-            <label for="service-price">Price:</label>
-            <input type="number" id="service-price" step="0.01" required>
-          </div>
-          <div class="form-group">
-            <label for="service-duration">Duration (minutes):</label>
-            <input type="number" id="service-duration" required>
-          </div>
-          <button type="submit" class="btn">Add Service</button>
-        </form>
-        <ul id="services-list"></ul>
-      </div>
-      <div id="appointments-section">
-        <h3>Your Appointments</h3>
-        <ul id="appointments-list"></ul>
+    </div>
+
+    <!-- Client Dashboard -->
+    <div id="client-dashboard" style="display: none;">
+      <div class="card">
+        <h2>My Appointments</h2>
+        <div id="client-appointments-list"></div>
       </div>
     </div>
   </div>
+
+  <script src="scripts/auth.js"></script>
   <script src="scripts/dashboard.js"></script>
 </body>
 </html>

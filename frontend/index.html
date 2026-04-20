@@ -7,14 +7,57 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <h1 class="nav-logo">BarberBook</h1>
+      <div class="nav-links" id="nav-links">
+        <a href="#" id="home-link">Home</a>
+        <a href="#" id="booking-link">Book Appointment</a>
+        <a href="#" id="dashboard-link" style="display: none;">Dashboard</a>
+        <a href="#" id="login-link">Login</a>
+        <a href="#" id="register-link">Register</a>
+        <a href="#" id="logout-link" style="display: none;">Logout</a>
+      </div>
+    </div>
+  </nav>
+
   <div class="container">
-    <div class="card">
-      <h1>Barber Booking App</h1>
-      <p>Welcome! Choose an option below:</p>
-      <button class="btn" onclick="window.location='register.html'">Register</button>
-      <button class="btn" onclick="window.location='login.html'">Login</button>
-      <button class="btn" onclick="window.location='booking.html'">Book Appointment</button>
+    <div class="hero-section">
+      <h1>Welcome to BarberBook</h1>
+      <p>Your premier destination for booking barber appointments</p>
+      <div class="hero-buttons">
+        <button class="btn btn-primary" id="get-started-btn">Get Started</button>
+        <button class="btn btn-secondary" id="browse-shops-btn">Browse Shops</button>
+      </div>
+    </div>
+
+    <div class="features-section">
+      <h2>Why Choose Us?</h2>
+      <div class="features-grid">
+        <div class="feature-card">
+          <h3>Easy Booking</h3>
+          <p>Book appointments with your favorite barbers in just a few clicks</p>
+        </div>
+        <div class="feature-card">
+          <h3>Verified Barbers</h3>
+          <p>All barbers are verified and rated by our community</p>
+        </div>
+        <div class="feature-card">
+          <h3>Flexible Scheduling</h3>
+          <p>Choose from available time slots that work for you</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="shops-section" id="shops-section" style="display: none;">
+      <h2>Available Barber Shops</h2>
+      <div id="shops-list" class="shops-grid">
+        <!-- Shops will be loaded here -->
+      </div>
     </div>
   </div>
+
+  <script src="scripts/auth.js"></script>
+  <script src="scripts/index.js"></script>
 </body>
 </html>

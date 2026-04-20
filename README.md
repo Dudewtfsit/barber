@@ -1,53 +1,216 @@
-# Barber Booking App
+# BarberBook - Barber Appointment Booking System
 
-This is a production-ready Node.js/Express booking app for a single barber shop.
+A full-featured web application for booking barber appointments with separate dashboards for clients and barbers.
 
-## Local Development Setup
+## Features
 
-1. Install Node.js (v18+) and ensure PowerShell execution policy allows scripts (`Set-ExecutionPolicy RemoteSigned -Scope CurrentUser`).
+### For Clients
+- **User Registration & Authentication**: Secure signup and login with JWT tokens
+- **Browse Barber Shops**: View all available barber shops in the system
+- **Book Appointments**: Multi-step booking process with shop selection, service selection, and time slot booking
+- **Manage Appointments**: View upcoming appointments and cancel if needed
+- **Responsive Design**: Works on desktop and mobile devices
 
-2. The app now uses SQLite for simplicity. No PostgreSQL needed.
+### For Barbers
+- **Shop Management**: Create and manage barber shop information
+- **Service Management**: Add, view, and delete services offered
+- **Appointment Management**: View all appointments for their shop, mark appointments as done, or cancel them
+- **Dashboard**: Comprehensive dashboard to manage business operations
 
-3. Update `backend/.env` if needed (default PORT=3000).
+### Security Features
+- **JWT Authentication**: Secure token-based authentication
+- **Role-Based Access**: Different permissions for clients and barbers
+- **Password Hashing**: bcryptjs for secure password storage
+- **Rate Limiting**: Protection against abuse
+- **CORS**: Configured for frontend-backend communication
+- **Helmet**: Security headers for production
 
-4. Install backend dependencies:
+## Technology Stack
+
+### Backend
+- **Node.js** with **Express.js**
+- **PostgreSQL** database
+- **JWT** for authentication
+- **bcryptjs** for password hashing
+- **express-validator** for input validation
+- **express-rate-limit** for rate limiting
+- **helmet** for security headers
+- **CORS** for cross-origin requests
+
+### Frontend
+- **Vanilla JavaScript** (ES6+)
+- **HTML5** with semantic markup
+- **CSS3** with modern styling
+- **Fetch API** for HTTP requests
+- **Responsive design** with mobile-first approach
+
+### Database Schema
+- **users**: User accounts with roles (client/barber)
+- **barber_shops**: Shop information linked to barber owners
+- **services**: Services offered by each shop
+- **appointments**: Booking records with status tracking
+- **working_hours**: Shop operating hours (future feature)
+
+## Getting Started
+
+### Prerequisites
+- Node.js (v14 or higher)
+- PostgreSQL database
+- npm or yarn package manager
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd barber-booking-app
    ```
+
+2. **Backend Setup**
+   ```bash
    cd backend
    npm install
    ```
 
-5. Run migrations to create database and seed data:
-   ```
-   npm run migrate
+3. **Environment Configuration**
+   Create a `.env` file in the backend directory:
+   ```env
+   PORT=3002
+   DATABASE_URL=postgresql://username:password@localhost:5432/barber_db
+   JWT_SECRET=your-super-secret-jwt-key
+   FRONTEND_URL=http://localhost:5500
    ```
 
-6. Start the backend:
-   ```
+4. **Database Setup**
+   - Create a PostgreSQL database
+   - The application will automatically run migrations on startup
+   - Seed data will be inserted automatically
+
+5. **Start the Backend**
+   ```bash
+   npm start
+   # or for development
    npm run dev
    ```
-   Server runs on http://localhost:3001
 
-7. Install http-server globally:
-   ```
-   npm install -g http-server
-   ```
+6. **Frontend Setup**
+   - Open `frontend/index.html` in a web browser
+   - Or serve with a local server (e.g., Live Server extension in VS Code)
 
-8. Start the frontend server:
-   ```
-   cd frontend
-   http-server -p 8081
-   ```
-   Frontend available at http://localhost:8081
+## API Endpoints
 
-## Online Deployment (Recommended for Production)
+### Authentication
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/login` - User login
 
-Running locally is fine for development, but for a live app accessible online, deploy to cloud platforms. Here's a complete step-by-step guide:
+### Shop Management (Barbers)
+- `POST /api/shop` - Create/update shop
+- `GET /api/shop` - Get shop info
+- `GET /api/public/shops` - Get all shops (public)
 
-### Step 1: Prepare Code for Production
+### Services (Barbers)
+- `POST /api/services` - Add service
+- `GET /api/services` - Get shop services
+- `GET /api/services/:shopId` - Get services for a shop
+- `DELETE /api/services/:id` - Delete service
 
-2. **Update SQL for PostgreSQL**: The migration files (`backend/migrations/schema.sql` and `seed.sql`) use SQLite syntax. Convert to PostgreSQL:
-   - `AUTOINCREMENT` → `SERIAL`
-   - `INTEGER PRIMARY KEY AUTOINCREMENT` → `SERIAL PRIMARY KEY`
+### Appointments
+- `POST /api/book` - Book appointment (clients)
+- `GET /api/appointments` - Get appointments (role-based)
+- `PUT /api/appointments/:id/status` - Update status (barbers)
+- `PUT /api/appointments/:id/cancel` - Cancel appointment
+
+## Deployment
+
+### Backend (Render)
+1. Connect your GitHub repository to Render
+2. Set environment variables in Render dashboard
+3. Deploy the backend service
+
+### Frontend (Netlify)
+1. Upload the `frontend` folder to Netlify
+2. Configure build settings (if needed)
+3. Update `FRONTEND_URL` in backend environment
+
+## Usage
+
+### For Clients
+1. Register or login to the application
+2. Browse available barber shops
+3. Select a shop and choose a service
+4. Pick an available date and time
+5. Confirm your booking
+6. View and manage your appointments in the dashboard
+
+### For Barbers
+1. Register as a barber
+2. Create your shop profile
+3. Add services you offer
+4. View and manage appointments
+5. Mark appointments as completed
+
+## Development
+
+### Project Structure
+```
+barber-booking-app/
+├── backend/
+│   ├── app.js                 # Main server file
+│   ├── config/
+│   │   └── db.js             # Database configuration
+│   ├── middleware/
+│   │   ├── auth.js           # Authentication middleware
+│   │   └── validators.js     # Input validation
+│   ├── routes/
+│   │   ├── auth.js           # Authentication routes
+│   │   ├── shop.js           # Shop management routes
+│   │   ├── services.js       # Service management routes
+│   │   └── bookings.js       # Appointment routes
+│   ├── migrations/
+│   │   ├── schema.sql        # Database schema
+│   │   └── seed.sql          # Seed data
+│   └── package.json
+├── frontend/
+│   ├── index.html            # Landing page
+│   ├── login.html            # Login page
+│   ├── register.html         # Registration page
+│   ├── booking.html          # Booking page
+│   ├── dashboard.html        # Dashboard page
+│   ├── barber-dashboard.html # Barber dashboard
+│   ├── style.css             # Main stylesheet
+│   └── scripts/
+│       ├── auth.js           # Authentication logic
+│       ├── booking.js        # Booking logic
+│       ├── dashboard.js      # Dashboard logic
+│       └── index.js          # Homepage logic
+└── README.md
+```
+
+### Contributing
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## Future Enhancements
+
+- **Working Hours Management**: Allow barbers to set their operating hours
+- **Appointment Reminders**: Email/SMS notifications for upcoming appointments
+- **Ratings & Reviews**: Client feedback system for barbers
+- **Payment Integration**: Online payment processing
+- **Calendar View**: Visual calendar for appointment management
+- **Mobile App**: Native mobile applications
+- **Multi-language Support**: Internationalization
+- **Analytics Dashboard**: Business insights for barbers
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Support
+
+For support, please contact the development team or create an issue in the repository.
    - `DATETIME` → `TIMESTAMP`
    - Remove `IF NOT EXISTS` if needed
    - Adjust any SQLite-specific functions
