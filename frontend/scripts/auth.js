@@ -135,37 +135,15 @@ document.getElementById('save-shop').onclick = async () => {
 async function loadServices() {
   const res = await fetch('https://barber-6bvh.onrender.com/api/services', {
     headers: { 'Authorization': 'Bearer ' + token }
-if (window.location.pathname.endsWith('shop.html')) {
-  // Load shop info on page load
-  async function loadShop() {
-    const res = await fetch('https://barber-1-ovpr.onrender.com/api/shop', {
-      headers: { 'Authorization': 'Bearer ' + token }
-    });
-    if (res.ok) {
-      const shop = await res.json();
-      document.getElementById('shop-name').value = shop.name || '';
-      // ... address, city, state similarly
-    }
+  });
+  if (res.ok) {
+    const data = await res.json();
+    return data;
+  } else {
+    console.error('Error loading services');
+    return [];
   }
-  document.getElementById('save-shop').onclick = async () => {
-    const body = {
-      name: document.getElementById('shop-name').value,
-      address: document.getElementById('shop-address').value,
-      city: document.getElementById('shop-city').value,
-      state: document.getElementById('shop-state').value,
-    };
-    const res = await fetch('https://barber-1-ovpr.onrender.com/api/shop', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      body: JSON.stringify(body)
-    });
-    alert((await res.json()).message);
-  };
-
-  loadShop();
-}  alert((await res.json()).message);
-  }
-};
+}
 
 loadShop();
 loadServices();
@@ -185,3 +163,28 @@ async function apiFetch(url, options = {}) {
   }
   return res.json();
 }
+
+const fs = require('fs');
+const path = require('path');
+
+// Auto-run migrations on startup
+const schemaPath = path.join(__dirname, 'migrations', 'schema.sql');
+const seedPath = path.join(__dirname, 'migrations', 'seed.sql');
+
+async function runMigrations() {
+  try {
+    const schemaSQL = fs.readFileSync(schemaPath, 'utf8');
+    const seedSQL = fs.readFileSync(seedPath, 'utf8');
+    
+    await pool.query(schemaSQL);
+    console.log('✓ Schema created');
+    await pool.query(seedSQL);
+    console.log('✓ Data seeded');
+  } catch (err) {
+    if (!err.message.includes('already exists')) {
+      console.error('Migration error:', err);
+    }
+  }
+}
+
+runMigrations();
