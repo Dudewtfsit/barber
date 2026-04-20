@@ -1,12 +1,10 @@
 // scripts/shop.js
-const token = localStorage.getItem('token');
-if (!token) {
+if (!AuthUtils.isLoggedIn()) {
   window.location = 'login.html';
 }
 
 // Check user role from token
-const payload = JSON.parse(atob(token.split('.')[1]));
-const userRole = payload.role;
+const userRole = AuthUtils.getUserRole();
 
 if (userRole !== 'barber') {
   window.location = 'index.html'; // Redirect clients to booking page
@@ -16,7 +14,7 @@ if (userRole !== 'barber') {
 async function loadShop() {
   try {
     const res = await fetch('https://barber-1-ovpr.onrender.com/api/shop', {
-      headers: { 'Authorization': 'Bearer ' + token }
+      headers: { 'Authorization': 'Bearer ' + AuthUtils.getToken() }
     });
     if (res.ok) {
       const shop = await res.json();
@@ -44,7 +42,7 @@ document.getElementById('save-shop').addEventListener('click', async () => {
   try {
     const res = await fetch('https://barber-1-ovpr.onrender.com/api/shop', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + AuthUtils.getToken() },
       body: JSON.stringify(body)
     });
     const data = await res.json();
@@ -63,7 +61,7 @@ document.getElementById('save-shop').addEventListener('click', async () => {
 async function loadServices() {
   try {
     const res = await fetch('https://barber-1-ovpr.onrender.com/api/services', {
-      headers: { 'Authorization': 'Bearer ' + token }
+      headers: { 'Authorization': 'Bearer ' + AuthUtils.getToken() }
     });
     if (res.ok) {
       const services = await res.json();
@@ -98,7 +96,7 @@ document.getElementById('add-service').addEventListener('click', async () => {
   try {
     const res = await fetch('https://barber-1-ovpr.onrender.com/api/services', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + AuthUtils.getToken() },
       body: JSON.stringify(body)
     });
     const data = await res.json();
@@ -122,7 +120,7 @@ document.getElementById('add-service').addEventListener('click', async () => {
 async function loadAppointments() {
   try {
     const res = await fetch('https://barber-1-ovpr.onrender.com/api/appointments', {
-      headers: { 'Authorization': 'Bearer ' + token }
+      headers: { 'Authorization': 'Bearer ' + AuthUtils.getToken() }
     });
     if (res.ok) {
       const appointments = await res.json();
@@ -151,7 +149,7 @@ async function updateAppointmentStatus(appointmentId, status) {
   try {
     const res = await fetch(`https://barber-1-ovpr.onrender.com/api/appointments/${appointmentId}/cancel`, {
       method: 'PUT',
-      headers: { 'Authorization': 'Bearer ' + token },
+      headers: { 'Authorization': 'Bearer ' + AuthUtils.getToken() },
       body: JSON.stringify({ status })
     });
     const data = await res.json();
@@ -174,7 +172,7 @@ async function cancelAppointment(appointmentId) {
   try {
     const res = await fetch(`https://barber-1-ovpr.onrender.com/api/appointments/${appointmentId}/cancel`, {
       method: 'PUT',
-      headers: { 'Authorization': 'Bearer ' + token }
+      headers: { 'Authorization': 'Bearer ' + AuthUtils.getToken() }
     });
     const data = await res.json();
     if (res.ok) {

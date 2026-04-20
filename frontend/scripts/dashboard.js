@@ -1,12 +1,10 @@
 // scripts/dashboard.js
-const token = localStorage.getItem('token');
-if (!token) {
+if (!AuthUtils.isLoggedIn()) {
   window.location = 'login.html';
 }
 
 // Check user role from token
-const payload = JSON.parse(atob(token.split('.')[1]));
-const userRole = payload.role;
+const userRole = AuthUtils.getUserRole();
 
 // Update navigation based on authentication status
 function updateNavigation() {
@@ -16,7 +14,7 @@ function updateNavigation() {
   const logoutLink = document.getElementById('logout-link');
   const dashboardLink = document.getElementById('dashboard-link');
 
-  if (token) {
+  if (AuthUtils.isLoggedIn()) {
     loginLink.style.display = 'none';
     registerLink.style.display = 'none';
     logoutLink.style.display = 'inline';
@@ -58,8 +56,7 @@ document.getElementById('register-link').addEventListener('click', (e) => {
 
 document.getElementById('logout-link').addEventListener('click', (e) => {
   e.preventDefault();
-  localStorage.removeItem('token');
-  window.location = 'index.html';
+  AuthUtils.logout();
 });
 
 // Initialize dashboard based on user role
@@ -87,7 +84,7 @@ function initializeBarberDashboard() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + token
+            'Authorization': 'Bearer ' + AuthUtils.getToken()
           },
           body: JSON.stringify({ name, address, city, state })
         });
@@ -119,7 +116,7 @@ function initializeBarberDashboard() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + token
+            'Authorization': 'Bearer ' + AuthUtils.getToken()
           },
           body: JSON.stringify({ name, price, duration_minutes })
         });
@@ -155,7 +152,7 @@ function initializeClientDashboard() {
 async function loadShop() {
   try {
     const res = await fetch('https://barber-1-ovpr.onrender.com/api/shop', {
-      headers: { 'Authorization': 'Bearer ' + token }
+      headers: { 'Authorization': 'Bearer ' + AuthUtils.getToken() }
     });
     if (res.ok) {
       const shop = await res.json();
@@ -175,7 +172,7 @@ async function loadShop() {
 async function loadServices() {
   try {
     const res = await fetch('https://barber-1-ovpr.onrender.com/api/services', {
-      headers: { 'Authorization': 'Bearer ' + token }
+      headers: { 'Authorization': 'Bearer ' + AuthUtils.getToken() }
     });
     if (res.ok) {
       const services = await res.json();
@@ -212,7 +209,7 @@ async function deleteService(serviceId) {
   try {
     const res = await fetch(`https://barber-1-ovpr.onrender.com/api/services/${serviceId}`, {
       method: 'DELETE',
-      headers: { 'Authorization': 'Bearer ' + token }
+      headers: { 'Authorization': 'Bearer ' + AuthUtils.getToken() }
     });
     if (res.ok) {
       alert('Service deleted successfully');
@@ -230,7 +227,7 @@ async function deleteService(serviceId) {
 async function loadBarberAppointments() {
   try {
     const res = await fetch('https://barber-1-ovpr.onrender.com/api/appointments', {
-      headers: { 'Authorization': 'Bearer ' + token }
+      headers: { 'Authorization': 'Bearer ' + AuthUtils.getToken() }
     });
     if (res.ok) {
       const appointments = await res.json();
@@ -269,7 +266,7 @@ async function loadBarberAppointments() {
 async function loadClientAppointments() {
   try {
     const res = await fetch('https://barber-1-ovpr.onrender.com/api/appointments', {
-      headers: { 'Authorization': 'Bearer ' + token }
+      headers: { 'Authorization': 'Bearer ' + AuthUtils.getToken() }
     });
     if (res.ok) {
       const appointments = await res.json();
@@ -310,7 +307,7 @@ async function updateAppointmentStatus(appointmentId, status) {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + token
+        'Authorization': 'Bearer ' + AuthUtils.getToken()
       },
       body: JSON.stringify({ status })
     });
@@ -334,7 +331,7 @@ async function cancelAppointment(appointmentId) {
   try {
     const res = await fetch(`https://barber-1-ovpr.onrender.com/api/appointments/${appointmentId}/cancel`, {
       method: 'PUT',
-      headers: { 'Authorization': 'Bearer ' + token }
+      headers: { 'Authorization': 'Bearer ' + AuthUtils.getToken() }
     });
     const data = await res.json();
     if (res.ok) {
@@ -356,7 +353,7 @@ async function cancelClientAppointment(appointmentId) {
   try {
     const res = await fetch(`https://barber-1-ovpr.onrender.com/api/appointments/${appointmentId}/cancel`, {
       method: 'PUT',
-      headers: { 'Authorization': 'Bearer ' + token }
+      headers: { 'Authorization': 'Bearer ' + AuthUtils.getToken() }
     });
     const data = await res.json();
     if (res.ok) {

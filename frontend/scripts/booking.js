@@ -1,12 +1,11 @@
 // scripts/booking.js
-const token = localStorage.getItem('token');
 let currentStep = 1;
 let selectedShop = null;
 let selectedService = null;
 let selectedDateTime = null;
 
 // Check authentication
-if (!token) {
+if (!AuthUtils.isLoggedIn()) {
   window.location = 'login.html';
 }
 
@@ -18,7 +17,7 @@ function updateNavigation() {
   const logoutLink = document.getElementById('logout-link');
   const dashboardLink = document.getElementById('dashboard-link');
 
-  if (token) {
+  if (AuthUtils.isLoggedIn()) {
     loginLink.style.display = 'none';
     registerLink.style.display = 'none';
     logoutLink.style.display = 'inline';
@@ -56,8 +55,7 @@ document.getElementById('register-link').addEventListener('click', (e) => {
 
 document.getElementById('logout-link').addEventListener('click', (e) => {
   e.preventDefault();
-  localStorage.removeItem('token');
-  window.location = 'index.html';
+  AuthUtils.logout();
 });
 
 // Step navigation
@@ -215,7 +213,7 @@ document.getElementById('confirm-booking').addEventListener('click', async () =>
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + token
+        'Authorization': 'Bearer ' + AuthUtils.getToken()
       },
       body: JSON.stringify({
         shopId: selectedShop.id,

@@ -1,6 +1,4 @@
 // scripts/index.js
-const token = localStorage.getItem('token');
-
 // Update navigation based on authentication status
 function updateNavigation() {
   const navLinks = document.getElementById('nav-links');
@@ -9,7 +7,7 @@ function updateNavigation() {
   const logoutLink = document.getElementById('logout-link');
   const dashboardLink = document.getElementById('dashboard-link');
 
-  if (token) {
+  if (AuthUtils.isLoggedIn()) {
     // User is logged in
     loginLink.style.display = 'none';
     registerLink.style.display = 'none';
@@ -17,8 +15,8 @@ function updateNavigation() {
     dashboardLink.style.display = 'inline';
 
     // Check user role for dashboard redirect
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    if (payload.role === 'barber') {
+    const userRole = AuthUtils.getUserRole();
+    if (userRole === 'barber') {
       dashboardLink.textContent = 'Barber Dashboard';
       dashboardLink.onclick = () => window.location = 'barber-dashboard.html';
     } else {
@@ -37,8 +35,7 @@ function updateNavigation() {
 // Logout functionality
 document.getElementById('logout-link').addEventListener('click', (e) => {
   e.preventDefault();
-  localStorage.removeItem('token');
-  window.location.reload();
+  AuthUtils.logout();
 });
 
 // Navigation event listeners
@@ -49,7 +46,7 @@ document.getElementById('home-link').addEventListener('click', (e) => {
 
 document.getElementById('booking-link').addEventListener('click', (e) => {
   e.preventDefault();
-  if (token) {
+  if (AuthUtils.isLoggedIn()) {
     window.location = 'booking.html';
   } else {
     window.location = 'login.html';
@@ -68,9 +65,9 @@ document.getElementById('register-link').addEventListener('click', (e) => {
 
 // Hero section buttons
 document.getElementById('get-started-btn').addEventListener('click', () => {
-  if (token) {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    if (payload.role === 'barber') {
+  if (AuthUtils.isLoggedIn()) {
+    const userRole = AuthUtils.getUserRole();
+    if (userRole === 'barber') {
       window.location = 'barber-dashboard.html';
     } else {
       window.location = 'booking.html';
@@ -121,7 +118,7 @@ async function loadShops() {
 
 // View shop details
 function viewShop(shopId) {
-  if (token) {
+  if (AuthUtils.isLoggedIn()) {
     // Store shop ID and redirect to booking page
     localStorage.setItem('selectedShopId', shopId);
     window.location = 'booking.html';

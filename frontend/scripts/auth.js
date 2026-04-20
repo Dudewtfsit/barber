@@ -1,6 +1,5 @@
 // scripts/auth.js
 // Handles login/register form submissions, stores JWT in localStorage
-const token = localStorage.getItem('token');
 
 async function handleRegister(event) {
   event.preventDefault();
@@ -33,11 +32,11 @@ async function handleLogin(event) {
   });
   const data = await res.json();
   if (res.ok) {
-    localStorage.setItem('token', data.token);
+    AuthUtils.setToken(data.token);
     alert('Login successful');
     // Redirect based on role
-    const payload = JSON.parse(atob(data.token.split('.')[1]));
-    if (payload.role === 'barber') {
+    const userRole = AuthUtils.getUserRole();
+    if (userRole === 'barber') {
       window.location = 'barber-dashboard.html';
     } else {
       window.location = 'index.html';
@@ -46,6 +45,8 @@ async function handleLogin(event) {
     alert(data.message || 'Login failed');
   }
 }
+
+if (window.location.pathname.endsWith('register.html')) {
 
 if (window.location.pathname.endsWith('register.html')) {
   const registerForm = document.getElementById('registerForm');
