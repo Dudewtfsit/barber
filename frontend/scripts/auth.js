@@ -1,12 +1,14 @@
 // scripts/auth.js
 // Handles login/register form submissions, stores JWT in localStorage
+const token = localStorage.getItem('token');
+
 async function handleRegister(event) {
   event.preventDefault();
   const name = document.getElementById('name').value;
   const email = document.getElementById('email').value;
   const password = document.getElementById('password').value;
   const role = document.getElementById('role').value;
-  const res = await fetch('https://barber-6bvh.onrender.com/api/auth/register', {
+  const res = await fetch('https://barber-1-ovpr.onrender.com/api/auth/register', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({ name, email, password, role })
@@ -24,7 +26,7 @@ async function handleLogin(event) {
   event.preventDefault();
   const email = document.getElementById('email').value;
   const password = document.getElementById('password').value;
-  const res = await fetch('https://barber-6bvh.onrender.com/api/auth/login', {
+  const res = await fetch('https://barber-1-ovpr.onrender.com/api/auth/login', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({ email, password })
@@ -46,13 +48,12 @@ if (window.location.pathname.endsWith('login.html')) {
   document.getElementById('loginForm').addEventListener('submit', handleLogin);
 }
 // scripts/booking.js
-const token = localStorage.getItem('token');
 if (!token) {
   window.location = 'login.html';
 }
 
 async function loadShops() {
-  const res = await fetch('https://barber-6bvh.onrender.com/api/public/shops');
+  const res = await fetch('https://barber-1-ovpr.onrender.com/api/public/shops');
   if (res.ok) {
     const shops = await res.json();
     const list = document.getElementById('shops-list');
@@ -77,7 +78,7 @@ async function bookAppointment(shopId) {
   const startTime = `${date}T${time}:00`;
   // Assume serviceId=1 for simplicity
   const serviceId = 1;
-  const res = await fetch('https://barber-6bvh.onrender.com/api/book', {
+  const res = await fetch('https://barber-1-ovpr.onrender.com/api/book', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -91,7 +92,6 @@ async function bookAppointment(shopId) {
 
 loadShops();
 // scripts/dashboard.js
-const token = localStorage.getItem('token');
 if (!token) {
   window.location = 'login.html';
 }
@@ -102,7 +102,7 @@ document.getElementById('shopForm').addEventListener('submit', async (e) => {
   const address = document.getElementById('shop-address').value;
   const city = document.getElementById('shop-city').value;
   const state = document.getElementById('shop-state').value;
-  const res = await fetch('https://barber-6bvh.onrender.com/api/shop', {
+  const res = await fetch('https://barber-1-ovpr.onrender.com/api/shop', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -119,7 +119,7 @@ document.getElementById('serviceForm').addEventListener('submit', async (e) => {
   const name = document.getElementById('service-name').value;
   const price = parseFloat(document.getElementById('service-price').value);
   const duration_minutes = parseInt(document.getElementById('service-duration').value);
-  const res = await fetch('https://barber-6bvh.onrender.com/api/services', {
+  const res = await fetch('https://barber-1-ovpr.onrender.com/api/services', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -135,7 +135,7 @@ document.getElementById('serviceForm').addEventListener('submit', async (e) => {
 });
 
 async function loadServices() {
-  const res = await fetch('https://barber-6bvh.onrender.com/api/services', {
+  const res = await fetch('https://barber-1-ovpr.onrender.com/api/services', {
     headers: { 'Authorization': 'Bearer ' + token }
   });
   if (res.ok) {
@@ -151,7 +151,7 @@ async function loadServices() {
 }
 
 async function loadAppointments() {
-  const res = await fetch('https://barber-6bvh.onrender.com/api/appointments', {
+  const res = await fetch('https://barber-1-ovpr.onrender.com/api/appointments', {
     headers: { 'Authorization': 'Bearer ' + token }
   });
   if (res.ok) {
@@ -169,12 +169,11 @@ async function loadAppointments() {
 loadServices();
 loadAppointments();
 // scripts/shop.js
-const token = localStorage.getItem('token');
 if (!token) window.location = 'login.html';
 
 // Load shop info on page load
 async function loadShop() {
-  const res = await fetch('https://barber-6bvh.onrender.com/api/shop', {
+  const res = await fetch('https://barber-1-ovpr.onrender.com/api/shop', {
     headers: { 'Authorization': 'Bearer ' + token }
   });
   if (res.ok) {
@@ -190,7 +189,7 @@ document.getElementById('save-shop').onclick = async () => {
     city: document.getElementById('shop-city').value,
     state: document.getElementById('shop-state').value,
   };
-  const res = await fetch('https://barber-6bvh.onrender.com/api/shop', {
+  const res = await fetch('https://barber-1-ovpr.onrender.com/api/shop', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
     body: JSON.stringify(body)
