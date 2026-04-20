@@ -39,14 +39,6 @@ async (req, res) => {
     res.status(500).json({ message: 'Database error' });
   }
 });
-        );
-      }
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Database error' });
-  }
-});
 
 // Get the barber's shop info
 router.get('/shop', authenticateToken, authorizeRoles('barber'), async (req, res) => {
