@@ -35,7 +35,13 @@ async function handleLogin(event) {
   if (res.ok) {
     localStorage.setItem('token', data.token);
     alert('Login successful');
-    window.location = 'index.html';
+    // Redirect based on role
+    const payload = JSON.parse(atob(data.token.split('.')[1]));
+    if (payload.role === 'barber') {
+      window.location = 'barber-dashboard.html';
+    } else {
+      window.location = 'index.html';
+    }
   } else {
     alert(data.message || 'Login failed');
   }
