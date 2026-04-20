@@ -193,8 +193,6 @@ function showConfirmation() {
       <p><strong>Time:</strong> ${time} - ${endTime}</p>
     </div>
   `;
-
-  nextStep();
 }
 
 // Calculate end time based on duration
@@ -215,6 +213,15 @@ document.getElementById('confirm-booking').addEventListener('click', async () =>
   
   const startTime = `${selectedDateTime.date}T${selectedDateTime.time}:00`;
   const confirmBtn = document.getElementById('confirm-booking');
+  
+  // Debug log
+  console.log('Booking Details:', {
+    shopId: selectedShop.id,
+    serviceId: selectedService.id,
+    startTime: startTime,
+    date: selectedDateTime.date,
+    time: selectedDateTime.time
+  });
   
   AuthUtils.setLoading(confirmBtn, true);
   
@@ -237,6 +244,7 @@ document.getElementById('confirm-booking').addEventListener('click', async () =>
       AuthUtils.showSuccess('Appointment booked successfully! Redirecting...');
       setTimeout(() => window.location = 'dashboard.html', 1500);
     } else {
+      console.error('Booking error response:', data);
       AuthUtils.showError(data.message || 'Booking failed');
     }
   } catch (error) {
