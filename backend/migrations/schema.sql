@@ -50,5 +50,3 @@ CREATE TABLE appointments (
   status TEXT NOT NULL CHECK (status IN ('booked','cancelled','done')),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
