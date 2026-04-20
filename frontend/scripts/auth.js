@@ -48,7 +48,7 @@ if (window.location.pathname.endsWith('login.html')) {
   document.getElementById('loginForm').addEventListener('submit', handleLogin);
 }
 // scripts/booking.js
-if (!token) {
+if (!token && window.location.pathname.endsWith('index.html')) {
   window.location = 'login.html';
 }
 
@@ -92,7 +92,7 @@ async function bookAppointment(shopId) {
 
 loadShops();
 // scripts/dashboard.js
-if (!token) {
+if (!token && window.location.pathname.endsWith('dashboard.html')) {
   window.location = 'login.html';
 }
 
@@ -169,7 +169,7 @@ async function loadAppointments() {
 loadServices();
 loadAppointments();
 // scripts/shop.js
-if (!token) window.location = 'login.html';
+if (!token && window.location.pathname.endsWith('shop.html')) window.location = 'login.html';
 
 // Load shop info on page load
 async function loadShop() {
