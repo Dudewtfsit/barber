@@ -102,7 +102,7 @@ Running locally is fine for development, but for a live app accessible online, d
 4. Deploy.
 
 5. Update API URLs in frontend scripts to point to Railway:
-   - Change all `http://localhost:3002` to `https://your-project.railway.app`
+   - Change all `https://barber-6bvh.onrender.com` to `https://your-project.railway.app`
 
 6. Push the URL changes to GitHub, Netlify will auto-redeploy.
 

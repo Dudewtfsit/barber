@@ -4,7 +4,7 @@ if (!token) window.location = 'login.html';
 
 // Load shop info on page load
 async function loadShop() {
-  const res = await fetch('http://localhost:3002/api/shop', {
+  const res = await fetch('https://barber-6bvh.onrender.com/api/shop', {
     headers: { 'Authorization': 'Bearer ' + token }
   });
   if (res.ok) {
@@ -20,7 +20,7 @@ document.getElementById('save-shop').onclick = async () => {
     city: document.getElementById('shop-city').value,
     state: document.getElementById('shop-state').value,
   };
-  const res = await fetch('http://localhost:3002/api/shop', {
+  const res = await fetch('https://barber-6bvh.onrender.com/api/shop', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
     body: JSON.stringify(body)
@@ -30,7 +30,7 @@ document.getElementById('save-shop').onclick = async () => {
 
 // Load services
 async function loadServices() {
-  const res = await fetch('http://localhost:3002/api/services', {
+  const res = await fetch('https://barber-6bvh.onrender.com/api/services', {
     headers: { 'Authorization': 'Bearer ' + token }
   });
   const services = await res.json();
@@ -48,7 +48,7 @@ document.getElementById('add-service').onclick = async () => {
     price: parseFloat(document.getElementById('service-price').value),
     duration_minutes: parseInt(document.getElementById('service-duration').value)
   };
-  const res = await fetch('http://localhost:3002/api/services', {
+  const res = await fetch('https://barber-6bvh.onrender.com/api/services', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
     body: JSON.stringify(body)

@@ -10,7 +10,7 @@ document.getElementById('shopForm').addEventListener('submit', async (e) => {
   const address = document.getElementById('shop-address').value;
   const city = document.getElementById('shop-city').value;
   const state = document.getElementById('shop-state').value;
-  const res = await fetch('http://localhost:3002/api/shop', {
+  const res = await fetch('https://barber-6bvh.onrender.com/api/shop', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -27,7 +27,7 @@ document.getElementById('serviceForm').addEventListener('submit', async (e) => {
   const name = document.getElementById('service-name').value;
   const price = parseFloat(document.getElementById('service-price').value);
   const duration_minutes = parseInt(document.getElementById('service-duration').value);
-  const res = await fetch('http://localhost:3002/api/services', {
+  const res = await fetch('https://barber-6bvh.onrender.com/api/services', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -43,7 +43,7 @@ document.getElementById('serviceForm').addEventListener('submit', async (e) => {
 });
 
 async function loadServices() {
-  const res = await fetch('http://localhost:3002/api/services', {
+  const res = await fetch('https://barber-6bvh.onrender.com/api/services', {
     headers: { 'Authorization': 'Bearer ' + token }
   });
   if (res.ok) {
@@ -59,7 +59,7 @@ async function loadServices() {
 }
 
 async function loadAppointments() {
-  const res = await fetch('http://localhost:3002/api/appointments', {
+  const res = await fetch('https://barber-6bvh.onrender.com/api/appointments', {
     headers: { 'Authorization': 'Bearer ' + token }
   });
   if (res.ok) {

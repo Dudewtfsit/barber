@@ -5,7 +5,7 @@ if (!token) {
 }
 
 async function loadShops() {
-  const res = await fetch('http://localhost:3002/api/public/shops');
+  const res = await fetch('https://barber-6bvh.onrender.com/api/public/shops');
   if (res.ok) {
     const shops = await res.json();
     const list = document.getElementById('shops-list');
@@ -30,7 +30,7 @@ async function bookAppointment(shopId) {
   const startTime = `${date}T${time}:00`;
   // Assume serviceId=1 for simplicity
   const serviceId = 1;
-  const res = await fetch('http://localhost:3002/api/book', {
+  const res = await fetch('https://barber-6bvh.onrender.com/api/book', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
