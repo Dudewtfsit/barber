@@ -47,13 +47,13 @@ document.getElementById('save-shop').addEventListener('click', async () => {
     });
     const data = await res.json();
     if (res.ok) {
-      alert('Shop saved successfully!');
+      AuthUtils.showSuccess('Shop saved successfully!');
     } else {
-      alert(data.message || 'Error saving shop');
+      AuthUtils.showError(data.message || 'Error saving shop');
     }
   } catch (error) {
     console.error('Error:', error);
-    alert('Error saving shop');
+    AuthUtils.showError('Error saving shop');
   }
 });
 
@@ -89,7 +89,7 @@ document.getElementById('add-service').addEventListener('click', async () => {
   };
 
   if (!body.name || !body.price || !body.duration_minutes) {
-    alert('Please fill in all service fields');
+    AuthUtils.showError('Please fill in all service fields');
     return;
   }
 
@@ -101,18 +101,18 @@ document.getElementById('add-service').addEventListener('click', async () => {
     });
     const data = await res.json();
     if (res.ok) {
-      alert('Service added successfully!');
+      AuthUtils.showSuccess('Service added successfully!');
       loadServices(); // Refresh list
       // Clear form
       document.getElementById('service-name').value = '';
       document.getElementById('service-price').value = '';
       document.getElementById('service-duration').value = '';
     } else {
-      alert(data.message || 'Error adding service');
+      AuthUtils.showError(data.message || 'Error adding service');
     }
   } catch (error) {
     console.error('Error:', error);
-    alert('Error adding service');
+    AuthUtils.showError('Error adding service');
   }
 });
 
@@ -154,14 +154,14 @@ async function updateAppointmentStatus(appointmentId, status) {
     });
     const data = await res.json();
     if (res.ok) {
-      alert(`Appointment marked as ${status}`);
+      AuthUtils.showSuccess(`Appointment marked as ${status}`);
       loadAppointments(); // Refresh list
     } else {
-      alert(data.message || 'Update failed');
+      AuthUtils.showError(data.message || 'Update failed');
     }
   } catch (error) {
     console.error('Error updating:', error);
-    alert('Update failed');
+    AuthUtils.showError('Update failed');
   }
 }
 
@@ -176,14 +176,14 @@ async function cancelAppointment(appointmentId) {
     });
     const data = await res.json();
     if (res.ok) {
-      alert('Appointment cancelled successfully');
+      AuthUtils.showSuccess('Appointment cancelled successfully');
       loadAppointments(); // Refresh list
     } else {
-      alert(data.message || 'Cancellation failed');
+      AuthUtils.showError(data.message || 'Cancellation failed');
     }
   } catch (error) {
     console.error('Error cancelling:', error);
-    alert('Cancellation failed');
+    AuthUtils.showError('Cancellation failed');
   }
 }
 

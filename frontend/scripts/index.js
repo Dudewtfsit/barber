@@ -85,35 +85,45 @@ document.getElementById('browse-shops-btn').addEventListener('click', () => {
 });
 
 // Load shops for browsing
+let allShops = [];
 async function loadShops() {
   try {
     const res = await fetch('https://barber-1-ovpr.onrender.com/api/public/shops');
     if (res.ok) {
-      const shops = await res.json();
-      const shopsList = document.getElementById('shops-list');
-      shopsList.innerHTML = '';
-
-      if (shops.length === 0) {
-        shopsList.innerHTML = '<p>No barber shops available yet.</p>';
-        return;
-      }
-
-      shops.forEach(shop => {
-        const shopCard = document.createElement('div');
-        shopCard.className = 'shop-card';
-        shopCard.innerHTML = `
-          <h3>${shop.name}</h3>
-          <p>${shop.address}, ${shop.city}, ${shop.state}</p>
-          <button class="btn btn-primary" onclick="viewShop(${shop.id})">View Details</button>
-        `;
-        shopsList.appendChild(shopCard);
-      });
+      allShops = await res.json();
+      displayShops(allShops);
+      document.getElementById('shops-section').style.display = 'block';
+      document.querySelector('.hero-section').style.display = 'none';
+      document.querySelector('.features-section').style.display = 'none';
     } else {
-      console.error('Error loading shops');
+      AuthUtils.showError('Failed to load shops');
     }
   } catch (error) {
     console.error('Error:', error);
+    AuthUtils.showError('Error loading shops. Please try again.');
   }
+}
+
+// Display shops in the grid
+function displayShops(shops) {
+  const shopsList = document.getElementById('shops-list');
+  shopsList.innerHTML = '';
+
+  if (shops.length === 0) {
+    shopsList.innerHTML = '<p style="grid-column: 1/-1; text-align: center; padding: 40px;">No barber shops available yet.</p>';
+    return;
+  }
+
+  shops.forEach(shop => {
+    const shopCard = document.createElement('div');
+    shopCard.className = 'shop-card';
+    shopCard.innerHTML = `
+      <h3>${shop.name}</h3>
+      <p>${shop.address}, ${shop.city}, ${shop.state}</p>
+      <button class="btn btn-primary" onclick="viewShop(${shop.id})">View Details</button>
+    `;
+    shopsList.appendChild(shopCard);
+  });
 }
 
 // View shop details

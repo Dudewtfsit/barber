@@ -71,7 +71,7 @@ async function loadShops() {
       const shopsList = document.getElementById('shops-list');
 
       if (shops.length === 0) {
-        shopsList.innerHTML = '<p>No barber shops available yet.</p>';
+        shopsList.innerHTML = '<p style="text-align: center; padding: 20px;">No barber shops available yet.</p>';
         return;
       }
 
@@ -87,10 +87,11 @@ async function loadShops() {
         shopsList.appendChild(shopCard);
       });
     } else {
-      console.error('Error loading shops');
+      AuthUtils.showError('Failed to load shops');
     }
   } catch (error) {
     console.error('Error:', error);
+    AuthUtils.showError('Error loading shops. Please try again.');
   }
 }
 
@@ -111,7 +112,7 @@ async function loadServices() {
       const servicesList = document.getElementById('services-list');
 
       if (services.length === 0) {
-        servicesList.innerHTML = '<p>No services available at this shop yet.</p>';
+        servicesList.innerHTML = '<p style="text-align: center; padding: 20px;">No services available at this shop yet.</p>';
         return;
       }
 
@@ -127,10 +128,11 @@ async function loadServices() {
         servicesList.appendChild(serviceCard);
       });
     } else {
-      console.error('Error loading services');
+      AuthUtils.showError('Failed to load services');
     }
   } catch (error) {
     console.error('Error:', error);
+    AuthUtils.showError('Error loading services. Please try again.');
   }
 }
 
@@ -174,7 +176,7 @@ function showConfirmation() {
   const time = document.getElementById('appointment-time').value;
 
   if (!date || !time) {
-    alert('Please select both date and time');
+    AuthUtils.showError('Please select both date and time');
     return;
   }
 
@@ -206,8 +208,16 @@ function calculateEndTime(startTime, durationMinutes) {
 
 // Confirm booking
 document.getElementById('confirm-booking').addEventListener('click', async () => {
+  if (!selectedShop || !selectedService || !selectedDateTime) {
+    AuthUtils.showError('Please complete all booking steps');
+    return;
+  }
+  
   const startTime = `${selectedDateTime.date}T${selectedDateTime.time}:00`;
-
+  const confirmBtn = document.getElementById('confirm-booking');
+  
+  AuthUtils.setLoading(confirmBtn, true);
+  
   try {
     const res = await fetch('https://barber-1-ovpr.onrender.com/api/book', {
       method: 'POST',
@@ -224,14 +234,16 @@ document.getElementById('confirm-booking').addEventListener('click', async () =>
 
     const data = await res.json();
     if (res.ok) {
-      alert('Appointment booked successfully!');
-      window.location = 'dashboard.html';
+      AuthUtils.showSuccess('Appointment booked successfully! Redirecting...');
+      setTimeout(() => window.location = 'dashboard.html', 1500);
     } else {
-      alert(data.message || 'Booking failed');
+      AuthUtils.showError(data.message || 'Booking failed');
     }
   } catch (error) {
     console.error('Error booking:', error);
-    alert('Booking failed');
+    AuthUtils.showError('Booking failed. Please try again.');
+  } finally {
+    AuthUtils.setLoading(confirmBtn, false);
   }
 });
 

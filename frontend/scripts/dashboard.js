@@ -78,7 +78,15 @@ function initializeBarberDashboard() {
       const address = document.getElementById('shop-address').value;
       const city = document.getElementById('shop-city').value;
       const state = document.getElementById('shop-state').value;
+      const submitBtn = e.target.querySelector('button[type="submit"]');
+      
+      // Validation
+      if (!name || !address || !city || !state) {
+        AuthUtils.showError('Please fill in all fields');
+        return;
+      }
 
+      AuthUtils.setLoading(submitBtn, true);
       try {
         const res = await fetch('https://barber-1-ovpr.onrender.com/api/shop', {
           method: 'POST',
@@ -90,14 +98,16 @@ function initializeBarberDashboard() {
         });
         const data = await res.json();
         if (res.ok) {
-          alert('Shop saved successfully!');
+          AuthUtils.showSuccess('Shop saved successfully!');
           loadShop(); // Refresh shop info
         } else {
-          alert(data.message || 'Error saving shop');
+          AuthUtils.showError(data.message || 'Error saving shop');
         }
       } catch (error) {
         console.error('Error:', error);
-        alert('Error saving shop');
+        AuthUtils.showError('Error saving shop. Please try again.');
+      } finally {
+        AuthUtils.setLoading(submitBtn, false);
       }
     });
   }
@@ -110,7 +120,25 @@ function initializeBarberDashboard() {
       const name = document.getElementById('service-name').value;
       const price = parseFloat(document.getElementById('service-price').value);
       const duration_minutes = parseInt(document.getElementById('service-duration').value);
+      const submitBtn = e.target.querySelector('button[type="submit"]');
+      
+      // Validation
+      if (!name || !price || !duration_minutes) {
+        AuthUtils.showError('Please fill in all service fields');
+        return;
+      }
+      
+      if (price <= 0) {
+        AuthUtils.showError('Price must be greater than 0');
+        return;
+      }
+      
+      if (duration_minutes <= 0) {
+        AuthUtils.showError('Duration must be greater than 0 minutes');
+        return;
+      }
 
+      AuthUtils.setLoading(submitBtn, true);
       try {
         const res = await fetch('https://barber-1-ovpr.onrender.com/api/services', {
           method: 'POST',
@@ -122,18 +150,20 @@ function initializeBarberDashboard() {
         });
         const data = await res.json();
         if (res.ok) {
-          alert('Service added successfully!');
+          AuthUtils.showSuccess('Service added successfully!');
           loadServices(); // Refresh services list
           // Clear form
           document.getElementById('service-name').value = '';
           document.getElementById('service-price').value = '';
           document.getElementById('service-duration').value = '';
         } else {
-          alert(data.message || 'Error adding service');
+          AuthUtils.showError(data.message || 'Error adding service');
         }
       } catch (error) {
         console.error('Error:', error);
-        alert('Error adding service');
+        AuthUtils.showError('Error adding service. Please try again.');
+      } finally {
+        AuthUtils.setLoading(submitBtn, false);
       }
     });
   }
@@ -212,14 +242,14 @@ async function deleteService(serviceId) {
       headers: { 'Authorization': 'Bearer ' + AuthUtils.getToken() }
     });
     if (res.ok) {
-      alert('Service deleted successfully');
+      AuthUtils.showSuccess('Service deleted successfully');
       loadServices(); // Refresh list
     } else {
-      alert('Error deleting service');
+      AuthUtils.showError('Error deleting service');
     }
   } catch (error) {
     console.error('Error deleting service:', error);
-    alert('Error deleting service');
+    AuthUtils.showError('Error deleting service');
   }
 }
 
@@ -313,14 +343,14 @@ async function updateAppointmentStatus(appointmentId, status) {
     });
     const data = await res.json();
     if (res.ok) {
-      alert(`Appointment marked as ${status}`);
-      loadBarberAppointments(); // Refresh list
+      AuthUtils.showSuccess(`Appointment marked as ${status}`);
+      loadAppointments(); // Refresh list
     } else {
-      alert(data.message || 'Update failed');
+      AuthUtils.showError(data.message || 'Update failed');
     }
   } catch (error) {
     console.error('Error updating:', error);
-    alert('Update failed');
+    AuthUtils.showError('Update failed');
   }
 }
 
@@ -335,14 +365,14 @@ async function cancelAppointment(appointmentId) {
     });
     const data = await res.json();
     if (res.ok) {
-      alert('Appointment cancelled successfully');
-      loadBarberAppointments(); // Refresh list
+      AuthUtils.showSuccess('Appointment cancelled successfully');
+      loadAppointments(); // Refresh list
     } else {
-      alert(data.message || 'Cancellation failed');
+      AuthUtils.showError(data.message || 'Cancellation failed');
     }
   } catch (error) {
     console.error('Error cancelling:', error);
-    alert('Cancellation failed');
+    AuthUtils.showError('Cancellation failed');
   }
 }
 
@@ -357,14 +387,14 @@ async function cancelClientAppointment(appointmentId) {
     });
     const data = await res.json();
     if (res.ok) {
-      alert('Appointment cancelled successfully');
+      AuthUtils.showSuccess('Appointment cancelled successfully');
       loadClientAppointments(); // Refresh list
     } else {
-      alert(data.message || 'Cancellation failed');
+      AuthUtils.showError(data.message || 'Cancellation failed');
     }
   } catch (error) {
-    console.error('Error cancelling:', error);
-    alert('Cancellation failed');
+    console.error('Error cancelling appointment:', error);
+    AuthUtils.showError('Cancellation failed');
   }
 }
 

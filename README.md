@@ -2,6 +2,47 @@
 
 A full-featured web application for booking barber appointments with separate dashboards for clients and barbers.
 
+## Recent Enhancements
+
+### Bug Fixes
+- Fixed duplicate form registration event listener that was causing errors
+- Removed browser alert dialogs in favor of elegant notification system
+- Improved error handling across all API calls with proper try-catch blocks
+
+### New Features & Improvements
+
+#### User Experience
+- **Notification System**: Elegant toast-style notifications for success, error, warning, and info messages
+- **Loading States**: Visual loading indicators on buttons during API calls
+- **Input Validation**: Real-time validation for:
+  - Email format
+  - Password strength (minimum 6 characters)
+  - Name length (minimum 2 characters)
+  - Price and duration validation for services
+  - Required field validation
+- **Better Error Messages**: User-friendly error messages instead of generic alerts
+- **Improved Navigation**: Smooth redirects with better UX flow
+
+#### Form Enhancements
+- Client-side validation before form submission
+- Form submission buttons show loading state with spinner
+- Success messages redirect users smoothly after completing actions
+- All forms have field validation with visual feedback
+
+#### Technical Improvements
+- **Centralized Utilities**: New `AuthUtils` object with:
+  - Email validation
+  - Password validation
+  - Name validation
+  - Notification helpers
+  - Loading state management
+- **Better Error Handling**: Comprehensive try-catch blocks in all async operations
+- **CSS Enhancements**: New styles for:
+  - Notifications (success, error, warning, info)
+  - Loading spinners
+  - Form validation feedback
+  - Smooth animations
+
 ## Features
 
 ### For Clients
@@ -10,12 +51,14 @@ A full-featured web application for booking barber appointments with separate da
 - **Book Appointments**: Multi-step booking process with shop selection, service selection, and time slot booking
 - **Manage Appointments**: View upcoming appointments and cancel if needed
 - **Responsive Design**: Works on desktop and mobile devices
+- **Input Validation**: Real-time validation for all forms
 
 ### For Barbers
 - **Shop Management**: Create and manage barber shop information
 - **Service Management**: Add, view, and delete services offered
 - **Appointment Management**: View all appointments for their shop, mark appointments as done, or cancel them
 - **Dashboard**: Comprehensive dashboard to manage business operations
+- **Form Validation**: All inputs validated before submission
 
 ### Security Features
 - **JWT Authentication**: Secure token-based authentication
@@ -43,6 +86,7 @@ A full-featured web application for booking barber appointments with separate da
 - **CSS3** with modern styling
 - **Fetch API** for HTTP requests
 - **Responsive design** with mobile-first approach
+- **LocalStorage API** for token persistence
 
 ### Database Schema
 - **users**: User accounts with roles (client/barber)
