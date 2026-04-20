@@ -106,7 +106,7 @@ async function loadServices() {
   if (!selectedShop) return;
 
   try {
-    const res = await fetch(`https://barber-1-ovpr.onrender.com/api/services/${selectedShop.id}`);
+    const res = await fetch(`https://barber-1-ovpr.onrender.com/api/public/services/${selectedShop.id}`);
     if (res.ok) {
       const services = await res.json();
       const servicesList = document.getElementById('services-list');

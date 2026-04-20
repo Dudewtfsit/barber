@@ -61,4 +61,16 @@ router.get('/public/services', async (req, res) => {
   }
 });
 
+// List services for a specific shop (public for clients)
+router.get('/public/services/:shopId', async (req, res) => {
+  const { shopId } = req.params;
+  try {
+    const result = await pool.query('SELECT * FROM services WHERE shop_id = $1', [shopId]);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router;
