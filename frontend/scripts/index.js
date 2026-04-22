@@ -113,11 +113,17 @@ function displayShops(shops) {
   shops.forEach(shop => {
     const shopCard = document.createElement('div');
     shopCard.className = 'shop-card';
-    shopCard.innerHTML = `
-      <h3>${shop.name}</h3>
-      <p>${shop.address}, ${shop.city}, ${shop.state}</p>
-      <button class="btn btn-primary" onclick="viewShop(${shop.id})">View Details</button>
-    `;
+    const h3 = document.createElement('h3');
+    h3.textContent = shop.name;
+    const p = document.createElement('p');
+    p.textContent = `${shop.address}, ${shop.city}, ${shop.state}`;
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-primary';
+    btn.textContent = 'View Details';
+    btn.addEventListener('click', () => viewShop(shop.id));
+    shopCard.appendChild(h3);
+    shopCard.appendChild(p);
+    shopCard.appendChild(btn);
     shopsList.appendChild(shopCard);
   });
 }

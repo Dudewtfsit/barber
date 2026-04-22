@@ -77,11 +77,17 @@ async function loadShops() {
     shops.forEach(shop => {
       const shopCard = document.createElement('div');
       shopCard.className = 'shop-card';
-      shopCard.innerHTML = `
-        <h3>${shop.name}</h3>
-        <p>${shop.address}, ${shop.city}, ${shop.state}</p>
-        <button class="btn btn-primary" onclick="selectShop(${shop.id}, '${shop.name.replace(/'/g, "\\'")}')">Select Shop</button>
-      `;
+      const h3 = document.createElement('h3');
+      h3.textContent = shop.name;
+      const p = document.createElement('p');
+      p.textContent = `${shop.address}, ${shop.city}, ${shop.state}`;
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-primary';
+      btn.textContent = 'Select Shop';
+      btn.addEventListener('click', () => selectShop(shop.id, shop.name));
+      shopCard.appendChild(h3);
+      shopCard.appendChild(p);
+      shopCard.appendChild(btn);
       shopsList.appendChild(shopCard);
     });
   } catch (error) {
@@ -113,11 +119,17 @@ async function loadServices() {
     services.forEach(service => {
       const serviceCard = document.createElement('div');
       serviceCard.className = 'service-item';
-      serviceCard.innerHTML = `
-        <h4>${service.name}</h4>
-        <p>$${service.price} - ${service.duration_minutes} minutes</p>
-        <button class="btn btn-primary" onclick="selectService(${service.id}, '${service.name.replace(/'/g, "\\'")}', ${service.price}, ${service.duration_minutes})">Select Service</button>
-      `;
+      const h4 = document.createElement('h4');
+      h4.textContent = service.name;
+      const p = document.createElement('p');
+      p.textContent = `$${service.price} - ${service.duration_minutes} minutes`;
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-primary';
+      btn.textContent = 'Select Service';
+      btn.addEventListener('click', () => selectService(service.id, service.name, service.price, service.duration_minutes));
+      serviceCard.appendChild(h4);
+      serviceCard.appendChild(p);
+      serviceCard.appendChild(btn);
       servicesList.appendChild(serviceCard);
     });
   } catch (error) {

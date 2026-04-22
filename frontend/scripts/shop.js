@@ -112,12 +112,24 @@ async function loadAppointments() {
         list.innerHTML = '';
         appointments.forEach(a => {
           const li = document.createElement('li');
-          li.innerHTML = `
-            <strong>${a.service_name}</strong> - ${a.client_name}<br>
-            ${new Date(a.start_time).toLocaleString()} - ${new Date(a.end_time).toLocaleString()}<br>
-            Status: ${a.status}
-            ${a.status === 'booked' ? `<button onclick="updateAppointmentStatus(${a.id}, 'done')">Mark Done</button> <button onclick="cancelAppointment(${a.id})">Cancel</button>` : ''}
-          `;
+          const strong = document.createElement('strong');
+          strong.textContent = a.service_name;
+          const text = document.createElement('div');
+          text.innerHTML = `${a.client_name}<br>${new Date(a.start_time).toLocaleString()} - ${new Date(a.end_time).toLocaleString()}<br>Status: ${a.status}`;
+          li.appendChild(strong);
+          li.appendChild(document.createElement('br'));
+          li.appendChild(text);
+          if (a.status === 'booked') {
+            const doneBtn = document.createElement('button');
+            doneBtn.textContent = 'Mark Done';
+            doneBtn.addEventListener('click', () => updateAppointmentStatus(a.id, 'done'));
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = 'Cancel';
+            cancelBtn.addEventListener('click', () => cancelAppointment(a.id));
+            li.appendChild(doneBtn);
+            li.appendChild(document.createTextNode(' '));
+            li.appendChild(cancelBtn);
+          }
           list.appendChild(li);
         });
       }

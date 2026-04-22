@@ -184,13 +184,19 @@ async function loadServices() {
         services.forEach(s => {
           const serviceItem = document.createElement('div');
           serviceItem.className = 'service-item';
-          serviceItem.innerHTML = `
-            <div>
-              <h4>${s.name}</h4>
-              <p>$${s.price} - ${s.duration_minutes} minutes</p>
-            </div>
-            <button class="btn btn-danger" onclick="deleteService(${s.id})">Delete</button>
-          `;
+          const infoDiv = document.createElement('div');
+          const h4 = document.createElement('h4');
+          h4.textContent = s.name;
+          const p = document.createElement('p');
+          p.textContent = `$${s.price} - ${s.duration_minutes} minutes`;
+          infoDiv.appendChild(h4);
+          infoDiv.appendChild(p);
+          const delBtn = document.createElement('button');
+          delBtn.className = 'btn btn-danger';
+          delBtn.textContent = 'Delete';
+          delBtn.addEventListener('click', () => deleteService(s.id));
+          serviceItem.appendChild(infoDiv);
+          serviceItem.appendChild(delBtn);
           list.appendChild(serviceItem);
         });
       }
@@ -234,8 +240,8 @@ async function loadBarberAppointments() {
             <p><strong>Status:</strong> ${a.status}</p>
             <div>
               ${a.status === 'booked' ? `
-                <button class="btn btn-primary" onclick="updateAppointmentStatus(${a.id}, 'done')">Mark Done</button>
-                <button class="btn btn-danger" onclick="cancelAppointment(${a.id})">Cancel</button>
+                  <button class="btn btn-primary" data-action="mark-done" data-id="${a.id}">Mark Done</button>
+                  <button class="btn btn-danger" data-action="cancel" data-id="${a.id}">Cancel</button>
               ` : ''}
             </div>
           `;
@@ -268,7 +274,7 @@ async function loadClientAppointments() {
             <p><strong>Status:</strong> ${a.status}</p>
             <div>
               ${a.status === 'booked' ? `
-                <button class="btn btn-danger" onclick="cancelClientAppointment(${a.id})">Cancel Appointment</button>
+                  <button class="btn btn-danger" data-action="cancel-client" data-id="${a.id}">Cancel Appointment</button>
               ` : ''}
             </div>
           `;
@@ -323,3 +329,34 @@ async function cancelClientAppointment(appointmentId) {
 
 // Initialize navigation
 updateNavigation();
+
+// Event delegation for appointment action buttons (barber)
+const barberAppointmentsList = document.getElementById('appointments-list');
+if (barberAppointmentsList) {
+  barberAppointmentsList.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const action = btn.dataset.action;
+    const id = btn.dataset.id;
+    if (!action || !id) return;
+    if (action === 'mark-done') {
+      updateAppointmentStatus(id, 'done');
+    } else if (action === 'cancel') {
+      cancelAppointment(id);
+    }
+  });
+}
+
+// Event delegation for client appointment actions
+const clientAppointmentsList = document.getElementById('client-appointments-list');
+if (clientAppointmentsList) {
+  clientAppointmentsList.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const action = btn.dataset.action;
+    const id = btn.dataset.id;
+    if (action === 'cancel-client' && id) {
+      cancelClientAppointment(id);
+    }
+  });
+}

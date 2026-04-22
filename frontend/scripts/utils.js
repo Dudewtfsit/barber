@@ -1,8 +1,9 @@
 // scripts/utils.js
 // Helper functions and utilities
 
-// API base (configurable via window.API_BASE). Defaults to localhost backend for dev.
-const API_BASE = window.API_BASE || (location.hostname === 'localhost' ? 'http://localhost:3002' : window.location.origin);
+// API base (configurable via window.API_BASE).
+// Defaults to localhost backend for dev, otherwise uses the known backend host.
+const API_BASE = window.API_BASE || (location.hostname === 'localhost' ? 'http://localhost:3002' : 'https://barber-1-ovpr.onrender.com');
 
 // Token management
 function getToken() {
