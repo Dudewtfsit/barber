@@ -88,16 +88,12 @@ document.getElementById('browse-shops-btn').addEventListener('click', () => {
 let allShops = [];
 async function loadShops() {
   try {
-    const res = await fetch('https://barber-1-ovpr.onrender.com/api/public/shops');
-    if (res.ok) {
-      allShops = await res.json();
-      displayShops(allShops);
-      document.getElementById('shops-section').style.display = 'block';
-      document.querySelector('.hero-section').style.display = 'none';
-      document.querySelector('.features-section').style.display = 'none';
-    } else {
-      AuthUtils.showError('Failed to load shops');
-    }
+    const shops = await apiFetch('/api/public/shops');
+    allShops = shops;
+    displayShops(allShops);
+    document.getElementById('shops-section').style.display = 'block';
+    document.querySelector('.hero-section').style.display = 'none';
+    document.querySelector('.features-section').style.display = 'none';
   } catch (error) {
     console.error('Error:', error);
     AuthUtils.showError('Error loading shops. Please try again.');

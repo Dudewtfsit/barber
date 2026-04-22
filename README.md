@@ -1,3 +1,22 @@
+# Barber
+
+## Running Locally
+
+ - Copy `.env.example` to `.env` and set `DATABASE_URL` (Postgres) and `JWT_SECRET`.
+ - Install dependencies and start the server:
+
+ ```bash
+ cd backend
+ npm install
+ npm run dev   # starts with nodemon
+ ```
+
+ - The backend serves the frontend static files at `http://localhost:3002` by default.
+ - To run migrations/seeds:
+ ```bash
+ npm run migrate
+ npm run seed
+ ```
 # BarberBook - Barber Appointment Booking System
 
 A full-featured web application for booking barber appointments with separate dashboards for clients and barbers.

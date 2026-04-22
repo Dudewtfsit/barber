@@ -65,30 +65,25 @@ document.getElementById('prev-step').addEventListener('click', prevStep);
 // Load shops for selection
 async function loadShops() {
   try {
-    const res = await fetch('https://barber-1-ovpr.onrender.com/api/public/shops');
-    if (res.ok) {
-      const shops = await res.json();
-      const shopsList = document.getElementById('shops-list');
+    const shops = await apiFetch('/api/public/shops');
+    const shopsList = document.getElementById('shops-list');
 
-      if (shops.length === 0) {
-        shopsList.innerHTML = '<p style="text-align: center; padding: 20px;">No barber shops available yet.</p>';
-        return;
-      }
-
-      shopsList.innerHTML = '';
-      shops.forEach(shop => {
-        const shopCard = document.createElement('div');
-        shopCard.className = 'shop-card';
-        shopCard.innerHTML = `
-          <h3>${shop.name}</h3>
-          <p>${shop.address}, ${shop.city}, ${shop.state}</p>
-          <button class="btn btn-primary" onclick="selectShop(${shop.id}, '${shop.name.replace(/'/g, "\\'")}')">Select Shop</button>
-        `;
-        shopsList.appendChild(shopCard);
-      });
-    } else {
-      AuthUtils.showError('Failed to load shops');
+    if (!shops || shops.length === 0) {
+      shopsList.innerHTML = '<p style="text-align: center; padding: 20px;">No barber shops available yet.</p>';
+      return;
     }
+
+    shopsList.innerHTML = '';
+    shops.forEach(shop => {
+      const shopCard = document.createElement('div');
+      shopCard.className = 'shop-card';
+      shopCard.innerHTML = `
+        <h3>${shop.name}</h3>
+        <p>${shop.address}, ${shop.city}, ${shop.state}</p>
+        <button class="btn btn-primary" onclick="selectShop(${shop.id}, '${shop.name.replace(/'/g, "\\'")}')">Select Shop</button>
+      `;
+      shopsList.appendChild(shopCard);
+    });
   } catch (error) {
     console.error('Error:', error);
     AuthUtils.showError('Error loading shops. Please try again.');
@@ -106,30 +101,25 @@ async function loadServices() {
   if (!selectedShop) return;
 
   try {
-    const res = await fetch(`https://barber-1-ovpr.onrender.com/api/public/services/${selectedShop.id}`);
-    if (res.ok) {
-      const services = await res.json();
-      const servicesList = document.getElementById('services-list');
+    const services = await apiFetch(`/api/public/services/${selectedShop.id}`);
+    const servicesList = document.getElementById('services-list');
 
-      if (services.length === 0) {
-        servicesList.innerHTML = '<p style="text-align: center; padding: 20px;">No services available at this shop yet.</p>';
-        return;
-      }
-
-      servicesList.innerHTML = `<h3>Services at ${selectedShop.name}</h3>`;
-      services.forEach(service => {
-        const serviceCard = document.createElement('div');
-        serviceCard.className = 'service-item';
-        serviceCard.innerHTML = `
-          <h4>${service.name}</h4>
-          <p>$${service.price} - ${service.duration_minutes} minutes</p>
-          <button class="btn btn-primary" onclick="selectService(${service.id}, '${service.name.replace(/'/g, "\\'")}', ${service.price}, ${service.duration_minutes})">Select Service</button>
-        `;
-        servicesList.appendChild(serviceCard);
-      });
-    } else {
-      AuthUtils.showError('Failed to load services');
+    if (!services || services.length === 0) {
+      servicesList.innerHTML = '<p style="text-align: center; padding: 20px;">No services available at this shop yet.</p>';
+      return;
     }
+
+    servicesList.innerHTML = `<h3>Services at ${selectedShop.name}</h3>`;
+    services.forEach(service => {
+      const serviceCard = document.createElement('div');
+      serviceCard.className = 'service-item';
+      serviceCard.innerHTML = `
+        <h4>${service.name}</h4>
+        <p>$${service.price} - ${service.duration_minutes} minutes</p>
+        <button class="btn btn-primary" onclick="selectService(${service.id}, '${service.name.replace(/'/g, "\\'")}', ${service.price}, ${service.duration_minutes})">Select Service</button>
+      `;
+      servicesList.appendChild(serviceCard);
+    });
   } catch (error) {
     console.error('Error:', error);
     AuthUtils.showError('Error loading services. Please try again.');
@@ -226,30 +216,19 @@ document.getElementById('confirm-booking').addEventListener('click', async () =>
   AuthUtils.setLoading(confirmBtn, true);
   
   try {
-    const res = await fetch('https://barber-1-ovpr.onrender.com/api/book', {
+    await apiFetch('/api/book', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + AuthUtils.getToken()
-      },
       body: JSON.stringify({
         shopId: selectedShop.id,
         serviceId: selectedService.id,
         startTime
       })
     });
-
-    const data = await res.json();
-    if (res.ok) {
-      AuthUtils.showSuccess('Appointment booked successfully! Redirecting...');
-      setTimeout(() => window.location = 'dashboard.html', 1500);
-    } else {
-      console.error('Booking error response:', data);
-      AuthUtils.showError(data.message || 'Booking failed');
-    }
+    AuthUtils.showSuccess('Appointment booked successfully! Redirecting...');
+    setTimeout(() => window.location = 'dashboard.html', 1500);
   } catch (error) {
     console.error('Error booking:', error);
-    AuthUtils.showError('Booking failed. Please try again.');
+    AuthUtils.showError(error.message || 'Booking failed. Please try again.');
   } finally {
     AuthUtils.setLoading(confirmBtn, false);
   }

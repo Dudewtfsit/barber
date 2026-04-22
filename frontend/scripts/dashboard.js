@@ -88,24 +88,12 @@ function initializeBarberDashboard() {
 
       AuthUtils.setLoading(submitBtn, true);
       try {
-        const res = await fetch('https://barber-1-ovpr.onrender.com/api/shop', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + AuthUtils.getToken()
-          },
-          body: JSON.stringify({ name, address, city, state })
-        });
-        const data = await res.json();
-        if (res.ok) {
-          AuthUtils.showSuccess('Shop saved successfully!');
-          loadShop(); // Refresh shop info
-        } else {
-          AuthUtils.showError(data.message || 'Error saving shop');
-        }
+        await apiFetch('/api/shop', { method: 'POST', body: JSON.stringify({ name, address, city, state }) });
+        AuthUtils.showSuccess('Shop saved successfully!');
+        loadShop(); // Refresh shop info
       } catch (error) {
         console.error('Error:', error);
-        AuthUtils.showError('Error saving shop. Please try again.');
+        AuthUtils.showError(error.message || 'Error saving shop. Please try again.');
       } finally {
         AuthUtils.setLoading(submitBtn, false);
       }
@@ -140,28 +128,16 @@ function initializeBarberDashboard() {
 
       AuthUtils.setLoading(submitBtn, true);
       try {
-        const res = await fetch('https://barber-1-ovpr.onrender.com/api/services', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + AuthUtils.getToken()
-          },
-          body: JSON.stringify({ name, price, duration_minutes })
-        });
-        const data = await res.json();
-        if (res.ok) {
-          AuthUtils.showSuccess('Service added successfully!');
-          loadServices(); // Refresh services list
-          // Clear form
-          document.getElementById('service-name').value = '';
-          document.getElementById('service-price').value = '';
-          document.getElementById('service-duration').value = '';
-        } else {
-          AuthUtils.showError(data.message || 'Error adding service');
-        }
+        await apiFetch('/api/services', { method: 'POST', body: JSON.stringify({ name, price, duration_minutes }) });
+        AuthUtils.showSuccess('Service added successfully!');
+        loadServices(); // Refresh services list
+        // Clear form
+        document.getElementById('service-name').value = '';
+        document.getElementById('service-price').value = '';
+        document.getElementById('service-duration').value = '';
       } catch (error) {
         console.error('Error:', error);
-        AuthUtils.showError('Error adding service. Please try again.');
+        AuthUtils.showError(error.message || 'Error adding service. Please try again.');
       } finally {
         AuthUtils.setLoading(submitBtn, false);
       }
@@ -181,50 +157,42 @@ function initializeClientDashboard() {
 // Load shop info for barber
 async function loadShop() {
   try {
-    const res = await fetch('https://barber-1-ovpr.onrender.com/api/shop', {
-      headers: { 'Authorization': 'Bearer ' + AuthUtils.getToken() }
-    });
-    if (res.ok) {
-      const shop = await res.json();
-      document.getElementById('shop-name').value = shop.name || '';
-      document.getElementById('shop-address').value = shop.address || '';
-      document.getElementById('shop-city').value = shop.city || '';
-      document.getElementById('shop-state').value = shop.state || '';
-    } else if (res.status === 404) {
-      // No shop yet - form will be empty
-    }
+    const shop = await apiFetch('/api/shop');
+    document.getElementById('shop-name').value = shop.name || '';
+    document.getElementById('shop-address').value = shop.address || '';
+    document.getElementById('shop-city').value = shop.city || '';
+    document.getElementById('shop-state').value = shop.state || '';
   } catch (error) {
-    console.error('Error loading shop:', error);
+    if (error.status === 404) {
+      // No shop yet
+    } else {
+      console.error('Error loading shop:', error);
+    }
   }
 }
 
 // Load services for barber
 async function loadServices() {
   try {
-    const res = await fetch('https://barber-1-ovpr.onrender.com/api/services', {
-      headers: { 'Authorization': 'Bearer ' + AuthUtils.getToken() }
-    });
-    if (res.ok) {
-      const services = await res.json();
-      const list = document.getElementById('services-list');
-      if (list) {
-        list.innerHTML = '';
-        if (services.length === 0) {
-          list.innerHTML = '<p>No services added yet.</p>';
-        } else {
-          services.forEach(s => {
-            const serviceItem = document.createElement('div');
-            serviceItem.className = 'service-item';
-            serviceItem.innerHTML = `
-              <div>
-                <h4>${s.name}</h4>
-                <p>$${s.price} - ${s.duration_minutes} minutes</p>
-              </div>
-              <button class="btn btn-danger" onclick="deleteService(${s.id})">Delete</button>
-            `;
-            list.appendChild(serviceItem);
-          });
-        }
+    const services = await apiFetch('/api/services');
+    const list = document.getElementById('services-list');
+    if (list) {
+      list.innerHTML = '';
+      if (!services || services.length === 0) {
+        list.innerHTML = '<p>No services added yet.</p>';
+      } else {
+        services.forEach(s => {
+          const serviceItem = document.createElement('div');
+          serviceItem.className = 'service-item';
+          serviceItem.innerHTML = `
+            <div>
+              <h4>${s.name}</h4>
+              <p>$${s.price} - ${s.duration_minutes} minutes</p>
+            </div>
+            <button class="btn btn-danger" onclick="deleteService(${s.id})">Delete</button>
+          `;
+          list.appendChild(serviceItem);
+        });
       }
     }
   } catch (error) {
@@ -237,54 +205,42 @@ async function deleteService(serviceId) {
   if (!confirm('Are you sure you want to delete this service?')) return;
 
   try {
-    const res = await fetch(`https://barber-1-ovpr.onrender.com/api/services/${serviceId}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': 'Bearer ' + AuthUtils.getToken() }
-    });
-    if (res.ok) {
-      AuthUtils.showSuccess('Service deleted successfully');
-      loadServices(); // Refresh list
-    } else {
-      AuthUtils.showError('Error deleting service');
-    }
+    await apiFetch(`/api/services/${serviceId}`, { method: 'DELETE' });
+    AuthUtils.showSuccess('Service deleted successfully');
+    loadServices(); // Refresh list
   } catch (error) {
     console.error('Error deleting service:', error);
-    AuthUtils.showError('Error deleting service');
+    AuthUtils.showError(error.message || 'Error deleting service');
   }
 }
 
 // Load appointments for barber
 async function loadBarberAppointments() {
   try {
-    const res = await fetch('https://barber-1-ovpr.onrender.com/api/appointments', {
-      headers: { 'Authorization': 'Bearer ' + AuthUtils.getToken() }
-    });
-    if (res.ok) {
-      const appointments = await res.json();
-      const list = document.getElementById('appointments-list');
-      if (list) {
-        list.innerHTML = '';
-        if (appointments.length === 0) {
-          list.innerHTML = '<p>No appointments scheduled.</p>';
-        } else {
-          appointments.forEach(a => {
-            const appointmentItem = document.createElement('div');
-            appointmentItem.className = 'appointment-item';
-            appointmentItem.innerHTML = `
-              <h4>${a.service_name} - ${a.client_name}</h4>
-              <p><strong>Date:</strong> ${new Date(a.start_time).toLocaleDateString()}</p>
-              <p><strong>Time:</strong> ${new Date(a.start_time).toLocaleTimeString()} - ${new Date(a.end_time).toLocaleTimeString()}</p>
-              <p><strong>Status:</strong> ${a.status}</p>
-              <div>
-                ${a.status === 'booked' ? `
-                  <button class="btn btn-primary" onclick="updateAppointmentStatus(${a.id}, 'done')">Mark Done</button>
-                  <button class="btn btn-danger" onclick="cancelAppointment(${a.id})">Cancel</button>
-                ` : ''}
-              </div>
-            `;
-            list.appendChild(appointmentItem);
-          });
-        }
+    const appointments = await apiFetch('/api/appointments');
+    const list = document.getElementById('appointments-list');
+    if (list) {
+      list.innerHTML = '';
+      if (!appointments || appointments.length === 0) {
+        list.innerHTML = '<p>No appointments scheduled.</p>';
+      } else {
+        appointments.forEach(a => {
+          const appointmentItem = document.createElement('div');
+          appointmentItem.className = 'appointment-item';
+          appointmentItem.innerHTML = `
+            <h4>${a.service_name} - ${a.client_name}</h4>
+            <p><strong>Date:</strong> ${new Date(a.start_time).toLocaleDateString()}</p>
+            <p><strong>Time:</strong> ${new Date(a.start_time).toLocaleTimeString()} - ${new Date(a.end_time).toLocaleTimeString()}</p>
+            <p><strong>Status:</strong> ${a.status}</p>
+            <div>
+              ${a.status === 'booked' ? `
+                <button class="btn btn-primary" onclick="updateAppointmentStatus(${a.id}, 'done')">Mark Done</button>
+                <button class="btn btn-danger" onclick="cancelAppointment(${a.id})">Cancel</button>
+              ` : ''}
+            </div>
+          `;
+          list.appendChild(appointmentItem);
+        });
       }
     }
   } catch (error) {
@@ -295,34 +251,29 @@ async function loadBarberAppointments() {
 // Load appointments for client
 async function loadClientAppointments() {
   try {
-    const res = await fetch('https://barber-1-ovpr.onrender.com/api/appointments', {
-      headers: { 'Authorization': 'Bearer ' + AuthUtils.getToken() }
-    });
-    if (res.ok) {
-      const appointments = await res.json();
-      const list = document.getElementById('client-appointments-list');
-      if (list) {
-        list.innerHTML = '';
-        if (appointments.length === 0) {
-          list.innerHTML = '<p>You have no appointments scheduled.</p>';
-        } else {
-          appointments.forEach(a => {
-            const appointmentItem = document.createElement('div');
-            appointmentItem.className = 'appointment-item';
-            appointmentItem.innerHTML = `
-              <h4>${a.service_name} at ${a.shop_name}</h4>
-              <p><strong>Date:</strong> ${new Date(a.start_time).toLocaleDateString()}</p>
-              <p><strong>Time:</strong> ${new Date(a.start_time).toLocaleTimeString()} - ${new Date(a.end_time).toLocaleTimeString()}</p>
-              <p><strong>Status:</strong> ${a.status}</p>
-              <div>
-                ${a.status === 'booked' ? `
-                  <button class="btn btn-danger" onclick="cancelClientAppointment(${a.id})">Cancel Appointment</button>
-                ` : ''}
-              </div>
-            `;
-            list.appendChild(appointmentItem);
-          });
-        }
+    const appointments = await apiFetch('/api/appointments');
+    const list = document.getElementById('client-appointments-list');
+    if (list) {
+      list.innerHTML = '';
+      if (!appointments || appointments.length === 0) {
+        list.innerHTML = '<p>You have no appointments scheduled.</p>';
+      } else {
+        appointments.forEach(a => {
+          const appointmentItem = document.createElement('div');
+          appointmentItem.className = 'appointment-item';
+          appointmentItem.innerHTML = `
+            <h4>${a.service_name} at ${a.shop_name}</h4>
+            <p><strong>Date:</strong> ${new Date(a.start_time).toLocaleDateString()}</p>
+            <p><strong>Time:</strong> ${new Date(a.start_time).toLocaleTimeString()} - ${new Date(a.end_time).toLocaleTimeString()}</p>
+            <p><strong>Status:</strong> ${a.status}</p>
+            <div>
+              ${a.status === 'booked' ? `
+                <button class="btn btn-danger" onclick="cancelClientAppointment(${a.id})">Cancel Appointment</button>
+              ` : ''}
+            </div>
+          `;
+          list.appendChild(appointmentItem);
+        });
       }
     }
   } catch (error) {
@@ -333,24 +284,12 @@ async function loadClientAppointments() {
 // Update appointment status (barber only)
 async function updateAppointmentStatus(appointmentId, status) {
   try {
-    const res = await fetch(`https://barber-1-ovpr.onrender.com/api/appointments/${appointmentId}/status`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + AuthUtils.getToken()
-      },
-      body: JSON.stringify({ status })
-    });
-    const data = await res.json();
-    if (res.ok) {
-      AuthUtils.showSuccess(`Appointment marked as ${status}`);
-      loadAppointments(); // Refresh list
-    } else {
-      AuthUtils.showError(data.message || 'Update failed');
-    }
+    await apiFetch(`/api/appointments/${appointmentId}/status`, { method: 'PUT', body: JSON.stringify({ status }) });
+    AuthUtils.showSuccess(`Appointment marked as ${status}`);
+    loadBarberAppointments(); // Refresh list
   } catch (error) {
     console.error('Error updating:', error);
-    AuthUtils.showError('Update failed');
+    AuthUtils.showError(error.message || 'Update failed');
   }
 }
 
@@ -359,20 +298,12 @@ async function cancelAppointment(appointmentId) {
   if (!confirm('Are you sure you want to cancel this appointment?')) return;
 
   try {
-    const res = await fetch(`https://barber-1-ovpr.onrender.com/api/appointments/${appointmentId}/cancel`, {
-      method: 'PUT',
-      headers: { 'Authorization': 'Bearer ' + AuthUtils.getToken() }
-    });
-    const data = await res.json();
-    if (res.ok) {
-      AuthUtils.showSuccess('Appointment cancelled successfully');
-      loadAppointments(); // Refresh list
-    } else {
-      AuthUtils.showError(data.message || 'Cancellation failed');
-    }
+    await apiFetch(`/api/appointments/${appointmentId}/cancel`, { method: 'PUT' });
+    AuthUtils.showSuccess('Appointment cancelled successfully');
+    loadBarberAppointments(); // Refresh list
   } catch (error) {
     console.error('Error cancelling:', error);
-    AuthUtils.showError('Cancellation failed');
+    AuthUtils.showError(error.message || 'Cancellation failed');
   }
 }
 
@@ -381,20 +312,12 @@ async function cancelClientAppointment(appointmentId) {
   if (!confirm('Are you sure you want to cancel this appointment?')) return;
 
   try {
-    const res = await fetch(`https://barber-1-ovpr.onrender.com/api/appointments/${appointmentId}/cancel`, {
-      method: 'PUT',
-      headers: { 'Authorization': 'Bearer ' + AuthUtils.getToken() }
-    });
-    const data = await res.json();
-    if (res.ok) {
-      AuthUtils.showSuccess('Appointment cancelled successfully');
-      loadClientAppointments(); // Refresh list
-    } else {
-      AuthUtils.showError(data.message || 'Cancellation failed');
-    }
+    await apiFetch(`/api/appointments/${appointmentId}/cancel`, { method: 'PUT' });
+    AuthUtils.showSuccess('Appointment cancelled successfully');
+    loadClientAppointments(); // Refresh list
   } catch (error) {
     console.error('Error cancelling appointment:', error);
-    AuthUtils.showError('Cancellation failed');
+    AuthUtils.showError(error.message || 'Cancellation failed');
   }
 }
 

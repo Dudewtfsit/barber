@@ -28,17 +28,15 @@ async function handleRegister(event) {
   AuthUtils.setLoading(submitBtn, true);
   
   try {
-    const res = await fetch('https://barber-1-ovpr.onrender.com/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password, role })
-    });
-    const data = await res.json();
-    if (res.ok) {
+    try {
+      const data = await apiFetch('/api/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ name, email, password, role })
+      });
       AuthUtils.showSuccess('Registered successfully! Redirecting to login...');
       setTimeout(() => window.location = 'login.html', 1500);
-    } else {
-      AuthUtils.showError(data.message || 'Registration failed');
+    } catch (err) {
+      AuthUtils.showError(err.message || 'Registration failed');
     }
   } catch (error) {
     console.error('Error:', error);
@@ -68,13 +66,11 @@ async function handleLogin(event) {
   AuthUtils.setLoading(submitBtn, true);
   
   try {
-    const res = await fetch('https://barber-1-ovpr.onrender.com/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    const data = await res.json();
-    if (res.ok) {
+    try {
+      const data = await apiFetch('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password })
+      });
       AuthUtils.setToken(data.token);
       AuthUtils.showSuccess('Login successful! Redirecting...');
       // Redirect based on role
@@ -86,8 +82,8 @@ async function handleLogin(event) {
           window.location = 'index.html';
         }
       }, 1000);
-    } else {
-      AuthUtils.showError(data.message || 'Login failed');
+    } catch (err) {
+      AuthUtils.showError(err.message || 'Login failed');
     }
   } catch (error) {
     console.error('Error:', error);

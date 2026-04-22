@@ -1,6 +1,9 @@
 // scripts/utils.js
 // Helper functions and utilities
 
+// API base (configurable via window.API_BASE). Defaults to localhost backend for dev.
+const API_BASE = window.API_BASE || (location.hostname === 'localhost' ? 'http://localhost:3002' : window.location.origin);
+
 // Token management
 function getToken() {
   return localStorage.getItem('token');
@@ -35,20 +38,27 @@ function getUserRole() {
   return user ? user.role : null;
 }
 
-// API fetch wrapper
+// API fetch wrapper: prepends API_BASE for relative paths
 async function apiFetch(url, options = {}) {
   const token = getToken();
+  const resolvedUrl = url.startsWith('http') ? url : `${API_BASE}${url}`;
   const defaultOptions = {
     headers: {
       'Content-Type': 'application/json',
       ...(token && { 'Authorization': 'Bearer ' + token })
     }
   };
-  const res = await fetch(url, { ...defaultOptions, ...options });
+  const res = await fetch(resolvedUrl, { ...defaultOptions, ...options });
   if (!res.ok) {
-    throw new Error(`API error: ${res.status}`);
+    const text = await res.text().catch(() => '');
+    const err = new Error(`API error: ${res.status} ${text}`);
+    err.status = res.status;
+    throw err;
   }
-  return res.json();
+  // Try to parse JSON, but return text if not JSON
+  const contentType = res.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) return res.json();
+  return res.text();
 }
 
 // Logout function

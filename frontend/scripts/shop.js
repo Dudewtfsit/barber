@@ -13,20 +13,17 @@ if (userRole !== 'barber') {
 // Load shop info on page load
 async function loadShop() {
   try {
-    const res = await fetch('https://barber-1-ovpr.onrender.com/api/shop', {
-      headers: { 'Authorization': 'Bearer ' + AuthUtils.getToken() }
-    });
-    if (res.ok) {
-      const shop = await res.json();
-      document.getElementById('shop-name').value = shop.name || '';
-      document.getElementById('shop-address').value = shop.address || '';
-      document.getElementById('shop-city').value = shop.city || '';
-      document.getElementById('shop-state').value = shop.state || '';
-    } else if (res.status === 404) {
-      // No shop yet - form will be empty
-    }
+    const shop = await apiFetch('/api/shop');
+    document.getElementById('shop-name').value = shop.name || '';
+    document.getElementById('shop-address').value = shop.address || '';
+    document.getElementById('shop-city').value = shop.city || '';
+    document.getElementById('shop-state').value = shop.state || '';
   } catch (error) {
-    console.error('Error loading shop:', error);
+    if (error.status === 404) {
+      // No shop yet - form will be empty
+    } else {
+      console.error('Error loading shop:', error);
+    }
   }
 }
 
@@ -40,16 +37,11 @@ document.getElementById('save-shop').addEventListener('click', async () => {
   };
 
   try {
-    const res = await fetch('https://barber-1-ovpr.onrender.com/api/shop', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + AuthUtils.getToken() },
-      body: JSON.stringify(body)
-    });
-    const data = await res.json();
-    if (res.ok) {
+    try {
+      await apiFetch('/api/shop', { method: 'POST', body: JSON.stringify(body) });
       AuthUtils.showSuccess('Shop saved successfully!');
-    } else {
-      AuthUtils.showError(data.message || 'Error saving shop');
+    } catch (err) {
+      AuthUtils.showError(err.message || 'Error saving shop');
     }
   } catch (error) {
     console.error('Error:', error);
@@ -60,11 +52,8 @@ document.getElementById('save-shop').addEventListener('click', async () => {
 // Load services
 async function loadServices() {
   try {
-    const res = await fetch('https://barber-1-ovpr.onrender.com/api/services', {
-      headers: { 'Authorization': 'Bearer ' + AuthUtils.getToken() }
-    });
-    if (res.ok) {
-      const services = await res.json();
+    try {
+      const services = await apiFetch('/api/services');
       const list = document.getElementById('services-list');
       if (list) {
         list.innerHTML = '';
@@ -74,6 +63,8 @@ async function loadServices() {
           list.appendChild(li);
         });
       }
+    } catch (err) {
+      console.error('Error loading services:', err);
     }
   } catch (error) {
     console.error('Error loading services:', error);
@@ -94,21 +85,16 @@ document.getElementById('add-service').addEventListener('click', async () => {
   }
 
   try {
-    const res = await fetch('https://barber-1-ovpr.onrender.com/api/services', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + AuthUtils.getToken() },
-      body: JSON.stringify(body)
-    });
-    const data = await res.json();
-    if (res.ok) {
+    try {
+      await apiFetch('/api/services', { method: 'POST', body: JSON.stringify(body) });
       AuthUtils.showSuccess('Service added successfully!');
       loadServices(); // Refresh list
       // Clear form
       document.getElementById('service-name').value = '';
       document.getElementById('service-price').value = '';
       document.getElementById('service-duration').value = '';
-    } else {
-      AuthUtils.showError(data.message || 'Error adding service');
+    } catch (err) {
+      AuthUtils.showError(err.message || 'Error adding service');
     }
   } catch (error) {
     console.error('Error:', error);
@@ -119,11 +105,8 @@ document.getElementById('add-service').addEventListener('click', async () => {
 // Load appointments
 async function loadAppointments() {
   try {
-    const res = await fetch('https://barber-1-ovpr.onrender.com/api/appointments', {
-      headers: { 'Authorization': 'Bearer ' + AuthUtils.getToken() }
-    });
-    if (res.ok) {
-      const appointments = await res.json();
+    try {
+      const appointments = await apiFetch('/api/appointments');
       const list = document.getElementById('appointments-list');
       if (list) {
         list.innerHTML = '';
@@ -138,6 +121,8 @@ async function loadAppointments() {
           list.appendChild(li);
         });
       }
+    } catch (err) {
+      console.error('Error loading appointments:', err);
     }
   } catch (error) {
     console.error('Error loading appointments:', error);
@@ -147,17 +132,12 @@ async function loadAppointments() {
 // Update appointment status
 async function updateAppointmentStatus(appointmentId, status) {
   try {
-    const res = await fetch(`https://barber-1-ovpr.onrender.com/api/appointments/${appointmentId}/cancel`, {
-      method: 'PUT',
-      headers: { 'Authorization': 'Bearer ' + AuthUtils.getToken() },
-      body: JSON.stringify({ status })
-    });
-    const data = await res.json();
-    if (res.ok) {
+    try {
+      await apiFetch(`/api/appointments/${appointmentId}/cancel`, { method: 'PUT', body: JSON.stringify({ status }) });
       AuthUtils.showSuccess(`Appointment marked as ${status}`);
       loadAppointments(); // Refresh list
-    } else {
-      AuthUtils.showError(data.message || 'Update failed');
+    } catch (err) {
+      AuthUtils.showError(err.message || 'Update failed');
     }
   } catch (error) {
     console.error('Error updating:', error);
@@ -170,16 +150,12 @@ async function cancelAppointment(appointmentId) {
   if (!confirm('Are you sure you want to cancel this appointment?')) return;
 
   try {
-    const res = await fetch(`https://barber-1-ovpr.onrender.com/api/appointments/${appointmentId}/cancel`, {
-      method: 'PUT',
-      headers: { 'Authorization': 'Bearer ' + AuthUtils.getToken() }
-    });
-    const data = await res.json();
-    if (res.ok) {
+    try {
+      await apiFetch(`/api/appointments/${appointmentId}/cancel`, { method: 'PUT' });
       AuthUtils.showSuccess('Appointment cancelled successfully');
       loadAppointments(); // Refresh list
-    } else {
-      AuthUtils.showError(data.message || 'Cancellation failed');
+    } catch (err) {
+      AuthUtils.showError(err.message || 'Cancellation failed');
     }
   } catch (error) {
     console.error('Error cancelling:', error);

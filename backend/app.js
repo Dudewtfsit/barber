@@ -7,6 +7,12 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
+// Provide a development fallback for JWT_SECRET to avoid startup errors
+if (!process.env.JWT_SECRET) {
+  console.warn('Warning: JWT_SECRET not set. Using temporary development secret. Set JWT_SECRET in .env for production.');
+  process.env.JWT_SECRET = 'dev_secret_change_me';
+}
+
 const authRoutes = require('./routes/auth');
 const shopRoutes = require('./routes/shop');
 const servicesRoutes = require('./routes/services');
@@ -39,15 +45,19 @@ async function runMigrations() {
 runMigrations();
 
 // Security middleware
-app.use(helmet()); // sets secure HTTP headers【12†L169-L178】
-app.disable('x-powered-by'); // reduce fingerprinting【12†L220-L228】
+app.use(helmet());
+app.disable('x-powered-by');
 
 // Enable CORS for frontend domain (adjust in production)
 const allowedOrigins = [process.env.FRONTEND_URL, 'https://abdbarber.netlify.app'].filter(Boolean);
-app.use(cors({ origin: allowedOrigins })); // allow only our frontend origin【25†L211-L218】
+const corsOptions = allowedOrigins.length ? { origin: allowedOrigins } : {};
+app.use(cors(corsOptions));
 app.use(express.json()); 
 
-// Rate limiting to prevent abuse【23†L181-L184】
+// Serve frontend static files so backend can host the site in dev/prod
+app.use(express.static(path.join(__dirname, '..', 'frontend')));
+
+// Rate limiting to prevent abuse
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100,                 // limit each IP to 100 requests per windowMs
@@ -60,6 +70,11 @@ app.use('/api/auth', authRoutes);
 app.use('/api', shopRoutes);
 app.use('/api', servicesRoutes);
 app.use('/api', bookingsRoutes);
+
+// Fallback: serve frontend index for any other GET (SPA-friendly)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'frontend', 'index.html'));
+});
 
 // Error handling (basic)
 app.use((err, req, res, next) => {
