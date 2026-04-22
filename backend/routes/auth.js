@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const pool = require('../config/db');
+const { authenticateToken } = require('../middleware/auth');
 const router = express.Router();
 
 const SALT_ROUNDS = parseInt(process.env.BCRYPT_SALT_ROUNDS, 10) || 10;
@@ -80,3 +81,29 @@ async (req, res) => {
 });
 
 module.exports = router;
+
+// Additional profile endpoints
+// Get current user's profile
+router.get('/me', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, name, email, role, created_at FROM users WHERE id = $1', [req.user.id]);
+    if (result.rows.length === 0) return res.status(404).json({ message: 'User not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Profile error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get any user's public profile (barber can view client profiles)
+router.get('/users/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query('SELECT id, name, email, role, created_at FROM users WHERE id = $1', [id]);
+    if (result.rows.length === 0) return res.status(404).json({ message: 'User not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('User lookup error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});

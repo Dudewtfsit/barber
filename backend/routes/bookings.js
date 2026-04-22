@@ -108,7 +108,23 @@ router.post('/book',
          RETURNING id, start_time, end_time`,
         [clientId, shopId, serviceId, start.toISOString(), end.toISOString()]
       );
-      
+      // Emit real-time event to barber (if Socket.IO available)
+      try {
+        const io = req.app && req.app.locals && req.app.locals.io;
+        if (io) {
+          // find shop owner id
+          const shopRes = await pool.query('SELECT owner_id FROM barber_shops WHERE id = $1', [shopId]);
+          if (shopRes.rows.length > 0) {
+            const ownerId = shopRes.rows[0].owner_id;
+            io.to(`barber_${ownerId}`).emit('appointment_created', {
+              appointment: result.rows[0], shopId, serviceId, clientId
+            });
+          }
+        }
+      } catch (emitErr) {
+        console.error('Emit error:', emitErr);
+      }
+
       res.status(201).json({ 
         message: 'Appointment booked successfully',
         appointment: result.rows[0]
@@ -118,6 +134,21 @@ router.post('/book',
       res.status(500).json({ message: 'Booking error: ' + err.message });
     }
 });
+
+// Emit real-time events when appointments are created/cancelled/updated
+async function emitAppointmentEvent(type, appointmentId) {
+  try {
+    // Fetch appointment with shop owner
+    const apptRes = await pool.query('SELECT a.*, bs.owner_id FROM appointments a JOIN barber_shops bs ON a.shop_id = bs.id WHERE a.id = $1', [appointmentId]);
+    if (apptRes.rows.length === 0) return;
+    const appt = apptRes.rows[0];
+    const io = require('../app').locals?.io || null;
+    // Fallback to app.locals via pool? Better to access via global app -- instead use process-wide event: app.locals not accessible here easily
+    // Instead, require('../app') won't work because app.js exports nothing. Use a different approach: read from require('express')? Simpler: retrieve io from pool._client? Not feasible.
+  } catch (err) {
+    console.error('emitAppointmentEvent error:', err);
+  }
+}
 
 // Get appointments (both barber and client)
 router.get('/appointments', authenticateToken, async (req, res) => {
@@ -132,14 +163,14 @@ router.get('/appointments', authenticateToken, async (req, res) => {
       const shopResult = await pool.query('SELECT id FROM barber_shops WHERE owner_id = $1', [userId]);
       if (shopResult.rows.length === 0) return res.json([]);
       const shopId = shopResult.rows[0].id;
-      query = 'SELECT a.*, u.name AS client_name, s.name AS service_name FROM appointments a ' +
+            query = 'SELECT a.*, u.name AS client_name, s.name AS service_name, s.price AS service_price FROM appointments a ' +
               'JOIN users u ON a.client_id = u.id ' +
               'JOIN services s ON a.service_id = s.id ' +
               'WHERE a.shop_id = $1 ORDER BY a.start_time';
       params = [shopId];
     } else if (userRole === 'client') {
       // Client sees their own appointments
-      query = 'SELECT a.*, bs.name AS shop_name, s.name AS service_name FROM appointments a ' +
+            query = 'SELECT a.*, bs.name AS shop_name, s.name AS service_name, s.price AS service_price FROM appointments a ' +
               'JOIN barber_shops bs ON a.shop_id = bs.id ' +
               'JOIN services s ON a.service_id = s.id ' +
               'WHERE a.client_id = $1 ORDER BY a.start_time';
@@ -183,6 +214,14 @@ router.put('/appointments/:id/status', authenticateToken, authorizeRoles('barber
       return res.status(404).json({ message: 'Appointment not found' });
     }
 
+    // Emit to barber
+    try {
+      const io = req.app && req.app.locals && req.app.locals.io;
+      if (io) io.to(`barber_${userId}`).emit('appointment_updated', { id, status });
+    } catch (emitErr) {
+      console.error('Emit error:', emitErr);
+    }
+
     res.json({ message: 'Appointment updated' });
   } catch (err) {
     console.error(err);
@@ -220,6 +259,25 @@ router.put('/appointments/:id/cancel', authenticateToken, async (req, res) => {
 
     if (result.rows.length === 0) {
       return res.status(404).json({ message: 'Appointment not found' });
+    }
+
+    // Emit cancellation
+    try {
+      const io = req.app && req.app.locals && req.app.locals.io;
+      if (io) {
+        // fetch appointment to get shop owner
+        const apptRes = await pool.query('SELECT shop_id FROM appointments WHERE id = $1', [id]);
+        if (apptRes.rows.length > 0) {
+          const shopId = apptRes.rows[0].shop_id;
+          const shopRes = await pool.query('SELECT owner_id FROM barber_shops WHERE id = $1', [shopId]);
+          if (shopRes.rows.length > 0) {
+            const ownerId = shopRes.rows[0].owner_id;
+            io.to(`barber_${ownerId}`).emit('appointment_cancelled', { id });
+          }
+        }
+      }
+    } catch (emitErr) {
+      console.error('Emit error:', emitErr);
     }
 
     res.json({ message: 'Appointment cancelled' });

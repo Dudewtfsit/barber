@@ -50,6 +50,21 @@
           </form>
         </div>
 
+        <div id="dashboard-stats" style="margin-top:20px; display:flex; gap:12px;">
+          <div class="stat-card">
+            <h4 id="stat-today-count">0</h4>
+            <p>Today's appointments</p>
+          </div>
+          <div class="stat-card">
+            <h4 id="stat-upcoming">0</h4>
+            <p>Upcoming</p>
+          </div>
+          <div class="stat-card">
+            <h4 id="stat-revenue">$0</h4>
+            <p>Estimated revenue</p>
+          </div>
+        </div>
+
         <div id="services-section">
           <h3>Your Services</h3>
           <form id="serviceForm">
@@ -77,6 +92,14 @@
       </div>
     </div>
 
+    <!-- Client profile modal -->
+    <div id="client-modal" class="modal" style="display:none; position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); background:white; padding:20px; border-radius:8px; box-shadow:0 4px 20px rgba(0,0,0,.15); z-index:9999;">
+      <button id="close-client-modal" style="float:right">Close</button>
+      <h3 id="client-name">Client</h3>
+      <p id="client-email"></p>
+      <div id="client-meta"></div>
+    </div>
+
     <!-- Client Dashboard -->
     <div id="client-dashboard" style="display: none;">
       <div class="card">
@@ -88,6 +111,7 @@
 
   <script src="scripts/utils.js"></script>
   <script src="scripts/auth.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
   <script src="scripts/dashboard.js"></script>
 </body>
 </html>

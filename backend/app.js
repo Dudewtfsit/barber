@@ -21,6 +21,32 @@ const bookingsRoutes = require('./routes/bookings');
 const app = express();
 const PORT = process.env.PORT || 3002;
 
+// Create HTTP server and attach Socket.IO for real-time events
+const http = require('http');
+const server = http.createServer(app);
+const { Server: IOServer } = require('socket.io');
+// Enable CORS for frontend domain (adjust in production)
+const allowedOrigins = [process.env.FRONTEND_URL, 'https://abdbarber.netlify.app'].filter(Boolean);
+const corsOptions = allowedOrigins.length ? { origin: allowedOrigins } : {};
+
+const io = new IOServer(server, {
+  cors: corsOptions
+});
+
+// Make io available to routes via app.locals
+app.locals.io = io;
+
+io.on('connection', (socket) => {
+  console.log('Socket connected:', socket.id);
+  // allow joining room per barber id
+  socket.on('join', (room) => {
+    socket.join(room);
+  });
+  socket.on('disconnect', () => {
+    console.log('Socket disconnected:', socket.id);
+  });
+});
+
 // Auto-run migrations on startup
 const pool = require('./config/db');
 const schemaPath = path.join(__dirname, 'migrations', 'schema.sql');
@@ -48,9 +74,6 @@ runMigrations();
 app.use(helmet());
 app.disable('x-powered-by');
 
-// Enable CORS for frontend domain (adjust in production)
-const allowedOrigins = [process.env.FRONTEND_URL, 'https://abdbarber.netlify.app'].filter(Boolean);
-const corsOptions = allowedOrigins.length ? { origin: allowedOrigins } : {};
 app.use(cors(corsOptions));
 app.use(express.json()); 
 
@@ -83,6 +106,6 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

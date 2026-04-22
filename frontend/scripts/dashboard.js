@@ -63,6 +63,28 @@ document.getElementById('logout-link').addEventListener('click', (e) => {
 if (userRole === 'barber') {
   document.getElementById('barber-dashboard').style.display = 'block';
   initializeBarberDashboard();
+  // Connect to Socket.IO to receive live appointment events
+  try {
+    const socket = io();
+    const user = AuthUtils.getUserFromToken();
+    if (user && user.id) {
+      socket.emit('join', `barber_${user.id}`);
+    }
+    socket.on('appointment_created', (payload) => {
+      AuthUtils.showSuccess('New appointment received');
+      loadBarberAppointments();
+    });
+    socket.on('appointment_updated', (payload) => {
+      AuthUtils.showSuccess('Appointment updated');
+      loadBarberAppointments();
+    });
+    socket.on('appointment_cancelled', (payload) => {
+      AuthUtils.showWarning('Appointment cancelled');
+      loadBarberAppointments();
+    });
+  } catch (err) {
+    console.warn('Socket.IO not available', err);
+  }
 } else if (userRole === 'client') {
   document.getElementById('client-dashboard').style.display = 'block';
   initializeClientDashboard();
@@ -231,28 +253,78 @@ async function loadBarberAppointments() {
         list.innerHTML = '<p>No appointments scheduled.</p>';
       } else {
         appointments.forEach(a => {
-          const appointmentItem = document.createElement('div');
-          appointmentItem.className = 'appointment-item';
-          appointmentItem.innerHTML = `
-            <h4>${a.service_name} - ${a.client_name}</h4>
-            <p><strong>Date:</strong> ${new Date(a.start_time).toLocaleDateString()}</p>
-            <p><strong>Time:</strong> ${new Date(a.start_time).toLocaleTimeString()} - ${new Date(a.end_time).toLocaleTimeString()}</p>
-            <p><strong>Status:</strong> ${a.status}</p>
-            <div>
-              ${a.status === 'booked' ? `
-                  <button class="btn btn-primary" data-action="mark-done" data-id="${a.id}">Mark Done</button>
-                  <button class="btn btn-danger" data-action="cancel" data-id="${a.id}">Cancel</button>
-              ` : ''}
-            </div>
-          `;
-          list.appendChild(appointmentItem);
+              const appointmentItem = document.createElement('div');
+              appointmentItem.className = 'appointment-item';
+              const title = document.createElement('h4');
+              title.textContent = `${a.service_name} - ${a.client_name}`;
+              const dateP = document.createElement('p');
+              dateP.innerHTML = `<strong>Date:</strong> ${new Date(a.start_time).toLocaleDateString()}`;
+              const timeP = document.createElement('p');
+              timeP.innerHTML = `<strong>Time:</strong> ${new Date(a.start_time).toLocaleTimeString()} - ${new Date(a.end_time).toLocaleTimeString()}`;
+              const statusP = document.createElement('p');
+              statusP.innerHTML = `<strong>Status:</strong> ${a.status}`;
+              const actionsDiv = document.createElement('div');
+              // View client profile
+              const viewBtn = document.createElement('button');
+              viewBtn.className = 'btn btn-secondary';
+              viewBtn.textContent = 'View Client';
+              viewBtn.addEventListener('click', () => showClientProfile(a.client_id));
+              actionsDiv.appendChild(viewBtn);
+              if (a.status === 'booked') {
+                const doneBtn = document.createElement('button');
+                doneBtn.className = 'btn btn-primary';
+                doneBtn.textContent = 'Mark Done';
+                doneBtn.addEventListener('click', () => updateAppointmentStatus(a.id, 'done'));
+                const cancelBtn = document.createElement('button');
+                cancelBtn.className = 'btn btn-danger';
+                cancelBtn.textContent = 'Cancel';
+                cancelBtn.addEventListener('click', () => cancelAppointment(a.id));
+                actionsDiv.appendChild(doneBtn);
+                actionsDiv.appendChild(cancelBtn);
+              }
+              appointmentItem.appendChild(title);
+              appointmentItem.appendChild(dateP);
+              appointmentItem.appendChild(timeP);
+              appointmentItem.appendChild(statusP);
+              appointmentItem.appendChild(actionsDiv);
+              list.appendChild(appointmentItem);
         });
+      }
+      // Update stats: today's count, upcoming, estimated revenue
+      try {
+        const today = new Date().toISOString().slice(0,10);
+        const todayCount = appointments.filter(a => a.start_time && a.start_time.startsWith(today)).length;
+        const upcoming = appointments.filter(a => new Date(a.start_time) > new Date()).length;
+        // Estimate revenue by summing service prices if available
+        const revenue = appointments.reduce((sum, a) => sum + (parseFloat(a.service_price || 0) || 0), 0);
+        document.getElementById('stat-today-count').textContent = todayCount;
+        document.getElementById('stat-upcoming').textContent = upcoming;
+        document.getElementById('stat-revenue').textContent = `$${revenue.toFixed(2)}`;
+      } catch (statErr) {
+        console.warn('Stats update failed', statErr);
       }
     }
   } catch (error) {
     console.error('Error loading appointments:', error);
   }
 }
+
+// Show client profile modal
+async function showClientProfile(clientId) {
+  try {
+    const client = await apiFetch(`/api/auth/users/${clientId}`);
+    document.getElementById('client-name').textContent = client.name;
+    document.getElementById('client-email').textContent = client.email;
+    document.getElementById('client-meta').textContent = `Role: ${client.role} • Joined: ${new Date(client.created_at).toLocaleDateString()}`;
+    document.getElementById('client-modal').style.display = 'block';
+  } catch (err) {
+    AuthUtils.showError('Unable to load client profile');
+  }
+}
+
+document.getElementById('close-client-modal').addEventListener('click', () => {
+  document.getElementById('client-modal').style.display = 'none';
+});
 
 // Load appointments for client
 async function loadClientAppointments() {
