@@ -216,14 +216,30 @@ document.getElementById('confirm-booking').addEventListener('click', async () =>
   const startTime = `${selectedDateTime.date}T${selectedDateTime.time}:00`;
   const confirmBtn = document.getElementById('confirm-booking');
   
-  // Debug log
-  console.log('Booking Details:', {
+  // Debug log - show auth info
+  const userRole = AuthUtils.getUserRole();
+  const token = AuthUtils.getToken();
+  console.log('Booking Debug:', {
+    userRole,
+    hasToken: !!token,
+    tokenLength: token ? token.length : 0,
     shopId: selectedShop.id,
     serviceId: selectedService.id,
     startTime: startTime,
     date: selectedDateTime.date,
     time: selectedDateTime.time
   });
+  
+  if (!token) {
+    AuthUtils.showError('Not authenticated. Please log in again.');
+    window.location = 'login.html';
+    return;
+  }
+  
+  if (userRole !== 'client') {
+    AuthUtils.showError(`Invalid role for booking. You are logged in as: ${userRole}. Please log in as a client.`);
+    return;
+  }
   
   AuthUtils.setLoading(confirmBtn, true);
   

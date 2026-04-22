@@ -77,13 +77,13 @@ router.post('/book',
   async (req, res) => {
     try {
       const { shopId, serviceId, startTime } = req.body;
-      console.log('Booking request received:', { shopId, serviceId, startTime });
+      const clientId = req.user.id;
+      
+      console.log('Booking request:', { clientId, shopId, serviceId, startTime });
       
       if (!shopId || !serviceId || !startTime) {
         return res.status(400).json({ message: 'Missing required fields: shopId, serviceId, startTime' });
       }
-      
-      const clientId = req.user.id;
       
       // Validate service exists
       const servResult = await pool.query('SELECT duration_minutes FROM services WHERE id = $1', [serviceId]);
