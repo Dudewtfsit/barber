@@ -23,53 +23,75 @@
 
   <div class="container">
     <div class="card">
+      <span class="eyebrow">Reserve your chair</span>
       <h2>Book an Appointment</h2>
-
-      <!-- Step 1: Shop Selection -->
-      <div id="shop-selection" class="booking-step">
-        <h3>Select a Barber Shop</h3>
-        <div id="shops-list" class="shops-grid">
-          <!-- Shops will be loaded here -->
-        </div>
+      <div class="booking-progress" id="booking-progress" aria-label="Booking progress">
+        <div class="progress-step active" data-progress-step="1">1. Shop</div>
+        <div class="progress-step" data-progress-step="2">2. Service</div>
+        <div class="progress-step" data-progress-step="3">3. Time</div>
+        <div class="progress-step" data-progress-step="4">4. Confirm</div>
       </div>
 
-      <!-- Step 2: Service Selection -->
-      <div id="service-selection" class="booking-step" style="display: none;">
-        <h3>Select a Service</h3>
-        <div id="services-list">
-          <!-- Services will be loaded here -->
-        </div>
-      </div>
+      <div class="booking-layout">
+        <div class="booking-main">
+          <div id="shop-selection" class="booking-step">
+            <h3>Select a Barber Shop</h3>
+            <div class="shop-controls">
+              <input type="search" id="booking-shop-search" placeholder="Search shops by name, city, or state...">
+              <select id="booking-shop-sort">
+                <option value="name">Sort by name</option>
+                <option value="city">Sort by city</option>
+                <option value="state">Sort by state</option>
+              </select>
+            </div>
+            <div id="shops-list" class="shops-grid"></div>
+          </div>
 
-      <!-- Step 3: Date and Time Selection -->
-      <div id="datetime-selection" class="booking-step" style="display: none;">
-        <h3>Select Date and Time</h3>
-        <div class="form-group">
-          <label for="appointment-date">Date:</label>
-          <input type="date" id="appointment-date" required>
-        </div>
-        <div class="form-group">
-          <label for="appointment-time">Time:</label>
-          <select id="appointment-time" required>
-            <option value="">Select a time</option>
-          </select>
-        </div>
-      </div>
+          <div id="service-selection" class="booking-step" style="display: none;">
+            <h3>Select a Service</h3>
+            <div id="services-list"></div>
+          </div>
 
-      <!-- Step 4: Confirmation -->
-      <div id="confirmation" class="booking-step" style="display: none;">
-        <h3>Confirm Your Appointment</h3>
-        <div id="booking-summary">
-          <!-- Booking details will be shown here -->
-        </div>
-        <button class="btn btn-primary" id="confirm-booking">Confirm Booking</button>
-        <button class="btn btn-secondary" id="back-to-datetime">Back</button>
-      </div>
+          <div id="datetime-selection" class="booking-step" style="display: none;">
+            <h3>Select Date and Time</h3>
+            <div class="form-group">
+              <label for="appointment-date">Date:</label>
+              <input type="date" id="appointment-date" required>
+            </div>
+            <div class="form-group">
+              <label for="appointment-time">Time:</label>
+              <select id="appointment-time" required>
+                <option value="">Select a time</option>
+              </select>
+            </div>
+            <p class="form-success" id="slot-helper">Choose a service and date to see available slots.</p>
+          </div>
 
-      <!-- Navigation Buttons -->
-      <div class="booking-navigation" style="display: none;">
-        <button class="btn btn-secondary" id="prev-step" style="display: none;">Previous</button>
-        <button class="btn btn-primary" id="next-step">Next</button>
+          <div id="confirmation" class="booking-step" style="display: none;">
+            <h3>Confirm Your Appointment</h3>
+            <div id="booking-summary"></div>
+            <button class="btn btn-primary" id="confirm-booking">Confirm Booking</button>
+            <button class="btn btn-secondary" id="back-to-datetime">Back</button>
+          </div>
+
+          <div class="booking-navigation" style="display: none;">
+            <button class="btn btn-secondary" id="prev-step" style="display: none;">Previous</button>
+            <button class="btn btn-primary" id="next-step">Next</button>
+          </div>
+        </div>
+
+        <aside class="booking-sidebar" aria-label="Live booking summary">
+          <span class="booking-pill">Live summary</span>
+          <h3>Your appointment</h3>
+          <p>Build the visit step by step. We will keep the details here as you choose.</p>
+          <div id="live-summary">
+            <div class="summary-line"><span>Shop</span><strong>Not selected</strong></div>
+            <div class="summary-line"><span>Service</span><strong>Not selected</strong></div>
+            <div class="summary-line"><span>Date</span><strong>Not selected</strong></div>
+            <div class="summary-line"><span>Time</span><strong>Not selected</strong></div>
+            <div class="summary-line"><span>Total</span><strong>$0</strong></div>
+          </div>
+        </aside>
       </div>
     </div>
   </div>

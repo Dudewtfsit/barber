@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Barber Booking App</title>
+  <title>BarberBook | Fresh Cuts, Easy Booking</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -21,41 +21,160 @@
     </div>
   </nav>
 
-  <div class="container">
-    <div class="hero-section">
-      <h1>Welcome to BarberBook</h1>
-      <p>Your premier destination for booking barber appointments</p>
-      <div class="hero-buttons">
-        <button class="btn btn-primary" id="get-started-btn">Get Started</button>
-        <button class="btn btn-secondary" id="browse-shops-btn">Browse Shops</button>
+  <main class="container landing-page">
+    <section class="hero-section hero-redesign">
+      <div class="hero-copy">
+        <span class="eyebrow">Precision cuts without the waiting room</span>
+        <h1>Book the chair before your fade loses patience.</h1>
+        <p>Find local barber shops, compare services, preview your visit, and reserve a time in a few clean clicks.</p>
+        <div class="hero-buttons">
+          <button class="btn btn-primary" id="get-started-btn">Book Now</button>
+          <button class="btn btn-secondary" id="browse-shops-btn">Explore Shops</button>
+        </div>
+        <div class="hero-stats" aria-label="BarberBook highlights">
+          <div><strong>24/7</strong><span>online booking</span></div>
+          <div><strong>30 min</strong><span>quick slots</span></div>
+          <div><strong>Live</strong><span>shop updates</span></div>
+        </div>
       </div>
-    </div>
+      <div class="hero-panel" aria-label="Appointment preview">
+        <div class="appointment-preview-card">
+          <span class="preview-status">Next available</span>
+          <h2>Classic Skin Fade</h2>
+          <p>Today at 4:30 PM</p>
+          <div class="preview-barber">
+            <span class="avatar-mark">BB</span>
+            <div>
+              <strong>BarberBook Studio</strong>
+              <small>Cut, beard line-up, hot towel finish</small>
+            </div>
+          </div>
+          <button class="btn btn-primary" id="preview-book-btn">Reserve This Look</button>
+        </div>
+      </div>
+    </section>
 
-    <div class="features-section">
-      <h2>Why Choose Us?</h2>
+    <section class="quick-tools-section" aria-label="Booking tools">
+      <div class="section-heading">
+        <span class="eyebrow">New features</span>
+        <h2>Plan the cut before you sit down</h2>
+      </div>
+      <div class="quick-tools-grid">
+        <article class="tool-card">
+          <h3>Style Match</h3>
+          <p>Pick the vibe and BarberBook suggests the kind of service to book.</p>
+          <div class="style-picker" id="style-picker">
+            <button data-style="clean">Clean</button>
+            <button data-style="sharp">Sharp</button>
+            <button data-style="beard">Beard</button>
+            <button data-style="full">Full Reset</button>
+          </div>
+          <p class="style-result" id="style-result">Choose a style vibe to get a booking tip.</p>
+        </article>
+        <article class="tool-card">
+          <h3>Visit Estimator</h3>
+          <p>Preview a typical appointment length and budget before browsing shops.</p>
+          <label for="service-estimator">Service type</label>
+          <select id="service-estimator">
+            <option value="25|20">Quick trim</option>
+            <option value="45|35">Fade or taper</option>
+            <option value="60|50">Cut and beard</option>
+            <option value="75|70">Full grooming session</option>
+          </select>
+          <div class="estimate-output" id="estimate-output">About 25 minutes from $20.</div>
+        </article>
+        <article class="tool-card">
+          <h3>Favorite Shops</h3>
+          <p>Save shops while browsing and keep your shortlist on this device.</p>
+          <div class="favorites-list" id="favorites-list">No favorite shops yet.</div>
+        </article>
+      </div>
+    </section>
+
+    <section class="features-section">
+      <div class="section-heading">
+        <span class="eyebrow">Why choose us?</span>
+        <h2>Less guessing. Better grooming.</h2>
+      </div>
       <div class="features-grid">
         <div class="feature-card">
+          <span class="feature-icon">01</span>
           <h3>Easy Booking</h3>
-          <p>Book appointments with your favorite barbers in just a few clicks</p>
+          <p>Book appointments with your favorite barbers in just a few clicks.</p>
         </div>
         <div class="feature-card">
+          <span class="feature-icon">02</span>
           <h3>Verified Barbers</h3>
-          <p>All barbers are verified and rated by our community</p>
+          <p>Shops can manage services, hours, and live appointment updates.</p>
         </div>
         <div class="feature-card">
+          <span class="feature-icon">03</span>
           <h3>Flexible Scheduling</h3>
-          <p>Choose from available time slots that work for you</p>
+          <p>Choose available time slots and see appointment details before confirming.</p>
         </div>
       </div>
-    </div>
+    </section>
 
-    <div class="shops-section" id="shops-section" style="display: none;">
-      <h2>Available Barber Shops</h2>
-      <div id="shops-list" class="shops-grid">
-        <!-- Shops will be loaded here -->
+    <section class="shops-section" id="shops-section" style="display: none;">
+      <div class="section-heading split-heading">
+        <div>
+          <span class="eyebrow">Browse shops</span>
+          <h2>Available Barber Shops</h2>
+        </div>
+        <button class="btn btn-secondary" id="back-home-btn">Back to Home</button>
       </div>
-    </div>
-  </div>
+      <div class="shop-controls">
+        <input type="search" id="shop-search" placeholder="Search by shop, city, state, or service vibe...">
+        <select id="shop-sort">
+          <option value="name">Sort by name</option>
+          <option value="city">Sort by city</option>
+          <option value="state">Sort by state</option>
+        </select>
+      </div>
+      <div class="shops-meta" id="shops-meta">Loading shops...</div>
+      <div id="shops-list" class="shops-grid"></div>
+    </section>
+
+    <section class="social-proof-section">
+      <div class="section-heading">
+        <span class="eyebrow">Client love</span>
+        <h2>The kind of smooth people talk about</h2>
+      </div>
+      <div class="testimonials-grid">
+        <article class="testimonial-card">
+          <p>"I booked during lunch and walked in after work. No phone tag, no waiting around."</p>
+          <strong>Marcus R.</strong>
+        </article>
+        <article class="testimonial-card">
+          <p>"The estimator helped me choose the full grooming session instead of rushing the beard work."</p>
+          <strong>Samir K.</strong>
+        </article>
+        <article class="testimonial-card">
+          <p>"As a barber, seeing upcoming appointments live keeps the whole day calmer."</p>
+          <strong>Jules T.</strong>
+        </article>
+      </div>
+    </section>
+
+    <section class="faq-section">
+      <div class="section-heading">
+        <span class="eyebrow">Good to know</span>
+        <h2>Booking questions, answered fast</h2>
+      </div>
+      <details>
+        <summary>Do I need an account to browse shops?</summary>
+        <p>No. You can explore shops first, then log in or register when you are ready to book.</p>
+      </details>
+      <details>
+        <summary>Can barbers manage their services?</summary>
+        <p>Yes. Barber accounts can add shop details, services, durations, prices, and appointment status updates.</p>
+      </details>
+      <details>
+        <summary>Are favorites synced across devices?</summary>
+        <p>Favorites are saved locally in this browser for now, which keeps the feature simple and private.</p>
+      </details>
+    </section>
+  </main>
 
   <script src="scripts/utils.js"></script>
   <script src="scripts/auth.js"></script>
