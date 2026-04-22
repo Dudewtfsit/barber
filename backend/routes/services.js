@@ -6,7 +6,7 @@ const pool = require('../config/db');
 const router = express.Router();
 
 // Add a new service
-router.post('/services',
+router.post('/',
   authenticateToken, authorizeRoles('barber'),
   body('name').notEmpty(),
   body('price').isNumeric(),
@@ -32,8 +32,8 @@ async (req, res) => {
   }
 });
 
-// List services for this barber's shop
-router.get('/services', authenticateToken, authorizeRoles('barber'), async (req, res) => {
+// List services for this barber's shop (barber only - "my services")
+router.get('/my-services', authenticateToken, authorizeRoles('barber'), async (req, res) => {
   const userId = req.user.id;
   try {
     const shopResult = await pool.query('SELECT id FROM barber_shops WHERE owner_id = $1', [userId]);
@@ -49,20 +49,8 @@ router.get('/services', authenticateToken, authorizeRoles('barber'), async (req,
   }
 });
 
-// List services for the shop (public for clients)
-router.get('/public/services', async (req, res) => {
-  try {
-    // Assuming shopId=1 for single shop
-    const result = await pool.query('SELECT * FROM services WHERE shop_id = 1');
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// List services for a specific shop (public for clients)
-router.get('/public/services/:shopId', async (req, res) => {
+// Get services for a specific shop (public for clients)
+router.get('/:shopId', async (req, res) => {
   const { shopId } = req.params;
   try {
     const result = await pool.query('SELECT * FROM services WHERE shop_id = $1', [shopId]);
@@ -70,6 +58,33 @@ router.get('/public/services/:shopId', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete a service (barber only)
+router.delete('/:serviceId', 
+  authenticateToken, 
+  authorizeRoles('barber'),
+async (req, res) => {
+  const { serviceId } = req.params;
+  const userId = req.user.id;
+  
+  try {
+    // Verify service belongs to this barber
+    const serviceResult = await pool.query(
+      'SELECT s.id FROM services s JOIN barber_shops b ON s.shop_id = b.id WHERE s.id = $1 AND b.owner_id = $2',
+      [serviceId, userId]
+    );
+    
+    if (serviceResult.rows.length === 0) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+    
+    await pool.query('DELETE FROM services WHERE id = $1', [serviceId]);
+    res.json({ message: 'Service deleted' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error deleting service' });
   }
 });
 

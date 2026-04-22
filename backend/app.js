@@ -48,23 +48,41 @@ io.on('connection', (socket) => {
 });
 
 // Auto-run migrations on startup
-const pool = require('./config/db');
-const schemaPath = path.join(__dirname, 'migrations', 'schema.sql');
-const seedPath = path.join(__dirname, 'migrations', 'seed.sql');
+const dbModule = require('./config/db');
 
 async function runMigrations() {
   try {
-    const schemaSQL = fs.readFileSync(schemaPath, 'utf8');
-    const seedSQL = fs.readFileSync(seedPath, 'utf8');
-    
-    await pool.query(schemaSQL);
-    console.log('✓ Schema created');
-    await pool.query(seedSQL);
-    console.log('✓ Data seeded');
-  } catch (err) {
-    if (!err.message.includes('already exists')) {
-      console.error('Migration error:', err);
+    const dbInfo = await dbModule.init();
+    const pool = dbInfo.pool;
+
+    if (dbInfo.type === 'pg') {
+      const schemaPath = path.join(__dirname, 'migrations', 'schema.sql');
+      const seedPath = path.join(__dirname, 'migrations', 'seed.sql');
+      const schemaSQL = fs.readFileSync(schemaPath, 'utf8');
+      const seedSQL = fs.readFileSync(seedPath, 'utf8');
+      await pool.query(schemaSQL);
+      console.log('✓ Postgres schema applied');
+      await pool.query(seedSQL);
+      console.log('✓ Postgres seed applied');
+    } else if (dbInfo.type === 'sqlite') {
+      const schemaPath = path.join(__dirname, 'migrations', 'schema_sqlite.sql');
+      const seedPath = path.join(__dirname, 'migrations', 'seed_sqlite.sql');
+      const schemaSQL = fs.readFileSync(schemaPath, 'utf8');
+      const seedSQL = fs.readFileSync(seedPath, 'utf8');
+      // sqlite wrapper supports statements; run them sequentially
+      const stmts = schemaSQL.split(/;\s*\n/).map(s => s.trim()).filter(Boolean);
+      for (const s of stmts) {
+        await pool.query(s + ';');
+      }
+      console.log('✓ SQLite schema applied');
+      const seeds = seedSQL.split(/;\s*\n/).map(s => s.trim()).filter(Boolean);
+      for (const s of seeds) {
+        await pool.query(s + ';');
+      }
+      console.log('✓ SQLite seed applied');
     }
+  } catch (err) {
+    console.error('Migration error:', err && err.message ? err.message : err);
   }
 }
 
@@ -90,9 +108,10 @@ app.use(limiter);
 
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api', shopRoutes);
-app.use('/api', servicesRoutes);
-app.use('/api', bookingsRoutes);
+app.use('/api/shop', shopRoutes);
+app.use('/api/services', servicesRoutes);
+app.use('/api/appointments', bookingsRoutes);
+app.use('/api/book', bookingsRoutes); // Legacy route for booking endpoint
 
 // Fallback: serve frontend index for any other GET (SPA-friendly)
 app.get('*', (req, res) => {

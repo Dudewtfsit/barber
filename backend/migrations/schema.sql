@@ -18,6 +18,8 @@ CREATE TABLE barber_shops (
   address TEXT NOT NULL,
   city TEXT NOT NULL,
   state TEXT NOT NULL,
+  phone TEXT,
+  description TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

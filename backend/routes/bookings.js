@@ -187,6 +187,28 @@ router.get('/appointments', authenticateToken, async (req, res) => {
   }
 });
 
+// Get barber appointments (alias for barber dashboard)
+router.get('/barber-appointments', authenticateToken, authorizeRoles('barber'), async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    const shopResult = await pool.query('SELECT id FROM barber_shops WHERE owner_id = $1', [userId]);
+    if (shopResult.rows.length === 0) return res.json([]);
+    const shopId = shopResult.rows[0].id;
+
+    const query = 'SELECT a.*, u.name AS client_name, s.name AS service_name, s.price AS service_price FROM appointments a ' +
+      'JOIN users u ON a.client_id = u.id ' +
+      'JOIN services s ON a.service_id = s.id ' +
+      'WHERE a.shop_id = $1 ORDER BY a.start_time DESC';
+
+    const appointmentsResult = await pool.query(query, [shopId]);
+    res.json(appointmentsResult.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Update appointment status (barber only)
 router.put('/appointments/:id/status', authenticateToken, authorizeRoles('barber'), async (req, res) => {
   const { id } = req.params;
