@@ -1,8 +1,26 @@
-const API_BASE = window.API_BASE || (
-  location.hostname === 'localhost'
-    ? 'http://localhost:3002'
-    : 'https://barber-1-ovpr.onrender.com'
-);
+function resolveApiBase() {
+  const metaApiBase = document.querySelector('meta[name="api-base"]')?.getAttribute('content');
+  if (window.API_BASE) return window.API_BASE;
+  if (metaApiBase) return metaApiBase;
+
+  const hostname = window.location.hostname;
+  const origin = window.location.origin;
+
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'http://localhost:3002';
+  }
+
+  if (
+    hostname.endsWith('.netlify.app') ||
+    hostname.endsWith('.netlify.live')
+  ) {
+    return 'https://barber-1-ovpr.onrender.com';
+  }
+
+  return origin;
+}
+
+const API_BASE = resolveApiBase();
 
 function getToken() {
   return localStorage.getItem('token');
