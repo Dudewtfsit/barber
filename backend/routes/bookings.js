@@ -15,8 +15,17 @@ function formatTime(minutes) {
   return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
 }
 
+function toDateKey(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 async function getAvailableSlots(shopId, serviceDuration, date) {
-  const dow = new Date(date).getDay();
+  const [year, month, day] = String(date).split('-').map(Number);
+  const dayDate = new Date(year, month - 1, day);
+  const dow = dayDate.getDay();
   const whResult = await pool.query(
     'SELECT start_hour, end_hour FROM working_hours WHERE shop_id = $1 AND day_of_week = $2',
     [shopId, dow]
@@ -43,7 +52,7 @@ async function getAvailableSlots(shopId, serviceDuration, date) {
     minutes + Number(serviceDuration) + bufferMinutes <= endMinutes;
     minutes += stepMinutes
   ) {
-    const slotStart = new Date(`${date}T${formatTime(minutes)}:00`);
+    const slotStart = new Date(year, month - 1, day, Math.floor(minutes / 60), minutes % 60, 0, 0);
     const slotEnd = new Date(slotStart.getTime() + Number(serviceDuration) * 60000);
 
     const overlap = appointmentsResult.rows.some((appointment) => {
@@ -67,10 +76,10 @@ async function getAppointmentsForUser(userId, userRole) {
     if (shopResult.rows.length === 0) return [];
 
     const appointmentsResult = await pool.query(
-      `SELECT a.*, u.name AS client_name, u.email AS client_email, s.name AS service_name, s.price AS service_price
+      `SELECT a.*, u.name AS client_name, u.email AS client_email, COALESCE(s.name, 'Service removed') AS service_name, COALESCE(s.price, 0) AS service_price
        FROM appointments a
        JOIN users u ON a.client_id = u.id
-       JOIN services s ON a.service_id = s.id
+       LEFT JOIN services s ON a.service_id = s.id
        WHERE a.shop_id = $1
        ORDER BY a.start_time DESC`,
       [shopResult.rows[0].id]
@@ -80,10 +89,10 @@ async function getAppointmentsForUser(userId, userRole) {
 
   if (userRole === 'client') {
     const appointmentsResult = await pool.query(
-      `SELECT a.*, bs.name AS shop_name, bs.city, bs.state, s.name AS service_name, s.price AS service_price
+      `SELECT a.*, bs.name AS shop_name, bs.city, bs.state, COALESCE(s.name, 'Service removed') AS service_name, COALESCE(s.price, 0) AS service_price
        FROM appointments a
        JOIN barber_shops bs ON a.shop_id = bs.id
-       JOIN services s ON a.service_id = s.id
+       LEFT JOIN services s ON a.service_id = s.id
        WHERE a.client_id = $1
        ORDER BY a.start_time DESC`,
       [userId]
@@ -154,7 +163,7 @@ router.post('/book', authenticateToken, authorizeRoles('client'), async (req, re
       return res.status(400).json({ message: 'Appointment time must be in the future' });
     }
 
-    const dateOnly = start.toISOString().slice(0, 10);
+    const dateOnly = toDateKey(start);
     const availableSlots = await getAvailableSlots(shopId, service.duration_minutes, dateOnly);
     const normalizedSlot = start.toISOString();
     const slotIsAvailable = availableSlots.some((slot) => new Date(slot).toISOString() === normalizedSlot);
@@ -251,6 +260,10 @@ async function updateAppointmentStatus(req, res, allowClientCancelOnly = false) 
         [nextStatus, appointmentId, shopResult.rows[0].id]
       );
     } else if (userRole === 'client') {
+      if (nextStatus !== 'cancelled') {
+        return res.status(403).json({ message: 'Clients can only cancel appointments' });
+      }
+
       result = await pool.query(
         'UPDATE appointments SET status = $1 WHERE id = $2 AND client_id = $3 RETURNING *',
         [nextStatus, appointmentId, userId]

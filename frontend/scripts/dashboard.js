@@ -12,6 +12,15 @@ function requireClientDashboard() {
   return true;
 }
 
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function formatAppointmentDate(isoValue) {
   const date = new Date(isoValue);
   return {
@@ -75,14 +84,14 @@ function renderAppointments(appointments) {
       <article class="appointment-row-card">
         <div class="appointment-row-main">
           <div class="appointment-row-top">
-            <h3>${appointment.shop_name}</h3>
+            <h3>${escapeHtml(appointment.shop_name)}</h3>
             ${createStatusBadge(appointment.status)}
           </div>
-          <p class="appointment-row-service">${appointment.service_name}</p>
+          <p class="appointment-row-service">${escapeHtml(appointment.service_name)}</p>
           <div class="appointment-row-meta">
             <span>${formatted.date}</span>
             <span>${formatted.time}</span>
-            <span>${appointment.city || ''}${appointment.city && appointment.state ? ', ' : ''}${appointment.state || ''}</span>
+            <span>${escapeHtml(`${appointment.city || ''}${appointment.city && appointment.state ? ', ' : ''}${appointment.state || ''}`)}</span>
             <span>$${Number(appointment.service_price || 0).toFixed(2)}</span>
           </div>
         </div>

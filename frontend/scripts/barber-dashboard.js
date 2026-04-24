@@ -5,6 +5,22 @@ let currentServices = [];
 let currentHours = [];
 let dashboardSocket = null;
 
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function getLocalDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function requireBarberAccess() {
   if (!AuthUtils.isLoggedIn()) {
     window.location = 'login.html';
@@ -83,7 +99,7 @@ function addActivity(message, type = 'info') {
   const feed = document.getElementById('activity-feed');
   const item = document.createElement('div');
   item.className = `activity-item activity-${type}`;
-  item.innerHTML = `<strong>${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</strong><p>${message}</p>`;
+  item.innerHTML = `<strong>${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</strong><p>${escapeHtml(message)}</p>`;
   feed.prepend(item);
 
   while (feed.children.length > 8) {
@@ -185,8 +201,8 @@ function renderServices() {
   list.innerHTML = currentServices.map((service) => `
     <article class="list-card">
       <div>
-        <h3>${service.name}</h3>
-        <p>$${Number(service.price).toFixed(2)} • ${service.duration_minutes} minutes</p>
+        <h3>${escapeHtml(service.name)}</h3>
+        <p>$${Number(service.price).toFixed(2)} - ${service.duration_minutes} minutes</p>
       </div>
       <button class="btn btn-secondary" data-delete-service="${service.id}">Delete</button>
     </article>
@@ -223,7 +239,7 @@ async function loadAppointments() {
 
 function updateStats() {
   const now = Date.now();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getLocalDateKey();
   const todayCount = currentAppointments.filter((appointment) => String(appointment.start_time).slice(0, 10) === today).length;
   const upcoming = currentAppointments.filter((appointment) => appointment.status === 'booked' && new Date(appointment.start_time).getTime() > now);
   const revenue = currentAppointments
@@ -255,14 +271,14 @@ function renderAppointments() {
       <article class="appointment-row-card">
         <div class="appointment-row-main">
           <div class="appointment-row-top">
-            <h3>${appointment.client_name}</h3>
+            <h3>${escapeHtml(appointment.client_name)}</h3>
             <span class="status-chip status-${appointment.status}">${appointment.status}</span>
           </div>
-          <p class="appointment-row-service">${appointment.service_name}</p>
+          <p class="appointment-row-service">${escapeHtml(appointment.service_name)}</p>
           <div class="appointment-row-meta">
             <span>${formatted.date}</span>
             <span>${formatted.time}</span>
-            <span>${appointment.client_email || ''}</span>
+            <span>${escapeHtml(appointment.client_email || '')}</span>
             <span>$${Number(appointment.service_price || 0).toFixed(2)}</span>
           </div>
         </div>
@@ -350,9 +366,15 @@ async function saveHours() {
   AuthUtils.setLoading(button, true, 'Saving...');
 
   try {
+    const hours = collectHoursFromForm();
+    const invalidEntry = hours.find((entry) => entry.start_hour >= entry.end_hour);
+    if (invalidEntry) {
+      throw new Error('Each open day needs an end time later than its start time.');
+    }
+
     await apiFetch('/api/shop/hours', {
       method: 'PUT',
-      body: JSON.stringify({ hours: collectHoursFromForm() })
+      body: JSON.stringify({ hours })
     });
     AuthUtils.showSuccess('Working hours updated.');
     loadHours();

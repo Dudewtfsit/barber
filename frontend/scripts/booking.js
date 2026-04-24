@@ -20,6 +20,13 @@ function escapeHtml(value) {
     .replace(/'/g, '&#039;');
 }
 
+function getLocalDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function formatDate(value) {
   return new Date(value).toLocaleDateString(undefined, {
     weekday: 'short',
@@ -214,7 +221,7 @@ async function loadServices() {
       <article class="service-item ${selectedService && Number(selectedService.id) === Number(service.id) ? 'selected' : ''}">
         <div>
           <h4>${escapeHtml(service.name)}</h4>
-          <p>$${Number(service.price).toFixed(2)} • ${service.duration_minutes} minutes</p>
+          <p>$${Number(service.price).toFixed(2)} - ${service.duration_minutes} minutes</p>
         </div>
         <button class="btn btn-primary" type="button" data-service-id="${service.id}">
           ${selectedService && Number(selectedService.id) === Number(service.id) ? 'Selected' : 'Choose'}
@@ -253,9 +260,8 @@ function resetDateTimeControls() {
   const dateInput = document.getElementById('appointment-date');
   const timeSelect = document.getElementById('appointment-time');
   const helper = document.getElementById('slot-helper');
-  const today = new Date().toISOString().slice(0, 10);
 
-  dateInput.min = today;
+  dateInput.min = getLocalDateKey();
   dateInput.value = '';
   timeSelect.innerHTML = '<option value="">Select a time</option>';
   helper.textContent = selectedService

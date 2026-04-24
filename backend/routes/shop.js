@@ -106,7 +106,8 @@ router.put('/hours',
           dayOfWeek < 0 ||
           dayOfWeek > 6 ||
           !startHour ||
-          !endHour
+          !endHour ||
+          startHour >= endHour
         ) {
           continue;
         }
