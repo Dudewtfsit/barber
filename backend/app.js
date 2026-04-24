@@ -116,7 +116,9 @@ io.on('connection', (socket) => {
   }
 }
 
-runMigrations();
+(async () => {
+  await runMigrations();
+})();
 
 // Security middleware
 app.use(helmet());
