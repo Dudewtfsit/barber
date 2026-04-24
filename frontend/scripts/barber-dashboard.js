@@ -6,6 +6,7 @@ let barberShop = null;
 let appointments = [];
 let clients = new Map();
 let unreadNotifications = 0;
+let activityLogs = [];
 let socket = null;
 
 // Initialize dashboard
@@ -34,7 +35,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load initial data
   await loadBarberData();
   await loadAppointments();
-  await loadClients();
   await loadServices();
 
   // Setup event listeners
@@ -69,8 +69,11 @@ function initializeSocket() {
 
   // Listen for new appointments from clients
   socket.on('appointment_created', (data) => {
+    const serviceName = data.serviceName || data.service || 'a service';
+    const clientName = data.clientName || 'Client';
     console.log('New appointment from client:', data);
-    addNotification(`New booking from client! Service: ${data.service}`, 'info');
+    addNotification(`New booking from ${clientName}: ${serviceName}`, 'info');
+    addActivityLog(`New booking started by ${clientName} for ${serviceName}`);
     unreadNotifications++;
     updateNotificationBadge();
     loadAppointments(); // Refresh appointments list
@@ -79,12 +82,15 @@ function initializeSocket() {
   // Listen for appointment updates
   socket.on('appointment_updated', (data) => {
     addNotification(`Appointment updated: ${data.message}`, 'info');
+    addActivityLog(`Appointment update: ${data.message}`);
     loadAppointments();
   });
 
   // Listen for appointment cancellations
   socket.on('appointment_cancelled', (data) => {
-    addNotification(`Appointment cancelled by ${data.clientName || 'client'}`, 'warning');
+    const clientName = data.clientName || 'Client';
+    addNotification(`Appointment cancelled by ${clientName}`, 'warning');
+    addActivityLog(`Appointment cancelled by ${clientName}`);
     loadAppointments();
   });
 
@@ -95,7 +101,9 @@ function initializeSocket() {
     let action = 'browsing your shop';
     if (data.step === 'service') action = 'selecting a service';
     if (data.step === 'time') action = 'choosing a time slot';
-    addNotification(`${clientName} is ${action}${shopName}`, 'info');
+    const message = `${clientName} is ${action}${shopName}`;
+    addNotification(message, 'info');
+    addActivityLog(message);
     unreadNotifications++;
     updateNotificationBadge();
   });
@@ -103,7 +111,9 @@ function initializeSocket() {
   socket.on('client_booking_confirmed', (data) => {
     const clientName = data.clientName || 'Client';
     const serviceName = data.serviceName || 'a service';
-    addNotification(`${clientName} confirmed booking for ${serviceName}`, 'success');
+    const message = `${clientName} confirmed booking for ${serviceName}`;
+    addNotification(message, 'success');
+    addActivityLog(message);
     unreadNotifications++;
     updateNotificationBadge();
     loadAppointments();
@@ -603,6 +613,34 @@ function addNotification(message, type = 'info') {
   
   // Auto remove after 5 seconds
   setTimeout(() => notification.remove(), 5000);
+}
+
+// Render live activity feed
+function renderActivityFeed() {
+  const feed = document.getElementById('activity-feed');
+  if (!feed) return;
+  if (activityLogs.length === 0) {
+    feed.innerHTML = '<div class="empty-state"><h3>No live activity yet</h3></div>';
+    return;
+  }
+
+  feed.innerHTML = activityLogs
+    .map(entry => `
+      <div class="activity-item">
+        <strong>${entry.message}</strong>
+        <span>${entry.timestamp}</span>
+      </div>
+    `)
+    .join('');
+}
+
+function addActivityLog(message) {
+  activityLogs.unshift({
+    message,
+    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  });
+  if (activityLogs.length > 7) activityLogs.pop();
+  renderActivityFeed();
 }
 
 // Update notification badge

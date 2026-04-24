@@ -117,7 +117,14 @@ router.post('/book',
           if (shopRes.rows.length > 0) {
             const ownerId = shopRes.rows[0].owner_id;
             io.to(`barber_${ownerId}`).emit('appointment_created', {
-              appointment: result.rows[0], shopId, serviceId, clientId
+              appointment: result.rows[0],
+              shopId,
+              serviceId,
+              clientId,
+              clientName: req.user.name || req.user.email || `Client ${clientId}`,
+              serviceName: servResult.rows[0].name,
+              startTime: start.toISOString(),
+              endTime: end.toISOString()
             });
           }
         }
@@ -287,14 +294,18 @@ router.put('/appointments/:id/cancel', authenticateToken, async (req, res) => {
     try {
       const io = req.app && req.app.locals && req.app.locals.io;
       if (io) {
-        // fetch appointment to get shop owner
-        const apptRes = await pool.query('SELECT shop_id FROM appointments WHERE id = $1', [id]);
+        // fetch appointment to get shop owner and client name
+        const apptRes = await pool.query(
+          'SELECT a.shop_id, a.client_id, u.name AS client_name FROM appointments a JOIN users u ON a.client_id = u.id WHERE a.id = $1',
+          [id]
+        );
         if (apptRes.rows.length > 0) {
           const shopId = apptRes.rows[0].shop_id;
+          const clientName = apptRes.rows[0].client_name || `Client ${apptRes.rows[0].client_id}`;
           const shopRes = await pool.query('SELECT owner_id FROM barber_shops WHERE id = $1', [shopId]);
           if (shopRes.rows.length > 0) {
             const ownerId = shopRes.rows[0].owner_id;
-            io.to(`barber_${ownerId}`).emit('appointment_cancelled', { id });
+            io.to(`barber_${ownerId}`).emit('appointment_cancelled', { id, clientName });
           }
         }
       }

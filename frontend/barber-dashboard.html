@@ -334,6 +334,46 @@
       color: #856404;
     }
 
+    .activity-feed {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .activity-feed h3 {
+      margin-top: 0;
+      margin-bottom: 15px;
+      color: #2c3e50;
+      font-size: 1.1rem;
+    }
+
+    .activity-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #ecf0f1;
+      padding: 12px 0;
+    }
+
+    .activity-item:last-child {
+      border-bottom: none;
+    }
+
+    .activity-item strong {
+      color: #2c3e50;
+      font-size: 0.95rem;
+      flex: 1;
+      margin-right: 10px;
+    }
+
+    .activity-item span {
+      color: #7f8c8d;
+      font-size: 0.85rem;
+      white-space: nowrap;
+    }
+
     /* Modal */
     .modal {
       display: none;
@@ -464,6 +504,11 @@
 
       <!-- Notifications Area -->
       <div id="notifications-container"></div>
+
+      <div class="activity-feed">
+        <h3>Live Activity</h3>
+        <div id="activity-feed"></div>
+      </div>
 
       <!-- Dashboard Section -->
       <div id="dashboard" class="section active">
