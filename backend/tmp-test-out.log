@@ -1,0 +1,5 @@
+Using SQLite fallback at ./backend/data.sqlite
+SQLite schema applied
+SQLite seed applied
+Server running on port 3012
+Auth successful: { userId: 6, role: 'barber' }

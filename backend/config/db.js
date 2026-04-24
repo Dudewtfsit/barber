@@ -25,8 +25,14 @@ function createSqlitePool() {
     query: (sql, params = []) => {
       return new Promise((resolve, reject) => {
         const trimmed = sql.trim().toUpperCase();
+        const usesReturning = /\bRETURNING\b/.test(trimmed);
         // Use run for statements that don't return rows
-        if (/^(INSERT|UPDATE|DELETE|CREATE|PRAGMA)/.test(trimmed)) {
+        if (/^(INSERT|UPDATE|DELETE)/.test(trimmed) && usesReturning) {
+          db.all(sql, params, (err, rows) => {
+            if (err) return reject(err);
+            resolve({ rows });
+          });
+        } else if (/^(INSERT|UPDATE|DELETE|CREATE|PRAGMA)/.test(trimmed)) {
           db.run(sql, params, function (err) {
             if (err) return reject(err);
             // mimic pg result

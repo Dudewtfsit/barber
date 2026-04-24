@@ -1,0 +1,19 @@
+Postgres connection failed, falling back to SQLite: getaddrinfo ENOTFOUND dpg-d7j0mqqqqhas739db1eg-a
+Error: SQLITE_CONSTRAINT: NOT NULL constraint failed: barber_shops.name
+--> in Statement#all([
+  6,         undefined,
+  undefined, undefined,
+  undefined, null,
+  null
+], [Function: replacement])
+    at Database.<anonymous> (C:\Users\Sanity\Desktop\Barber\backend\node_modules\sqlite3\lib\sqlite3.js:88:19)
+    at Database.<anonymous> (C:\Users\Sanity\Desktop\Barber\backend\node_modules\sqlite3\lib\sqlite3.js:20:19)
+    at C:\Users\Sanity\Desktop\Barber\backend\config\db.js:31:14
+    at new Promise (<anonymous>)
+    at Object.query (C:\Users\Sanity\Desktop\Barber\backend\config\db.js:26:14)
+    at Object.query (C:\Users\Sanity\Desktop\Barber\backend\config\db.js:86:24)
+    at C:\Users\Sanity\Desktop\Barber\backend\routes\shop.js:31:33 {
+  errno: 19,
+  code: 'SQLITE_CONSTRAINT',
+  __augmented: true
+}
