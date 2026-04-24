@@ -84,13 +84,29 @@ function initializeSocket() {
 
   // Listen for appointment cancellations
   socket.on('appointment_cancelled', (data) => {
-    addNotification(`Appointment cancelled by ${data.clientName}`, 'warning');
+    addNotification(`Appointment cancelled by ${data.clientName || 'client'}`, 'warning');
     loadAppointments();
   });
 
   // Listen for client activity
   socket.on('client_booking_started', (data) => {
-    addNotification(`${data.clientName} is browsing your services...`, 'info');
+    const clientName = data.clientName || 'Client';
+    const shopName = data.shopName ? ` at ${data.shopName}` : '';
+    let action = 'browsing your shop';
+    if (data.step === 'service') action = 'selecting a service';
+    if (data.step === 'time') action = 'choosing a time slot';
+    addNotification(`${clientName} is ${action}${shopName}`, 'info');
+    unreadNotifications++;
+    updateNotificationBadge();
+  });
+
+  socket.on('client_booking_confirmed', (data) => {
+    const clientName = data.clientName || 'Client';
+    const serviceName = data.serviceName || 'a service';
+    addNotification(`${clientName} confirmed booking for ${serviceName}`, 'success');
+    unreadNotifications++;
+    updateNotificationBadge();
+    loadAppointments();
   });
 }
 
@@ -146,6 +162,7 @@ async function loadAppointments() {
     // Filter and display appointments
     displayAppointments(appointments);
     updateStats();
+    await loadClients();
   } catch (err) {
     console.error('Error loading appointments:', err);
   }
@@ -280,24 +297,26 @@ async function cancelAppointment(aptId) {
 // Load clients
 async function loadClients() {
   try {
-    // Get all appointments to build client list
+    // Build client dashboard from appointment history
     const appts = appointments;
     const clientMap = new Map();
     
     appts.forEach(apt => {
-      if (!clientMap.has(apt.client_id)) {
-        clientMap.set(apt.client_id, {
-          id: apt.client_id,
+      const clientId = apt.client_id;
+      const clientName = apt.client_name || `Client ${clientId}`;
+      if (!clientMap.has(clientId)) {
+        clientMap.set(clientId, {
+          id: clientId,
+          name: clientName,
           bookings: 0,
           spent: 0,
           lastAppointment: null
         });
       }
       
-      const client = clientMap.get(apt.client_id);
+      const client = clientMap.get(clientId);
       client.bookings++;
       client.spent += apt.service_price || 0;
-      
       if (!client.lastAppointment || new Date(apt.start_time) > new Date(client.lastAppointment)) {
         client.lastAppointment = apt.start_time;
       }
@@ -536,6 +555,41 @@ function updateStats() {
   const cancelled = appointments.filter(a => a.status === 'cancelled').length;
   const cancellationRate = appointments.length > 0 ? Math.round((cancelled / appointments.length) * 100) : 0;
   document.getElementById('cancellation-rate').textContent = `${cancellationRate}%`;
+
+  renderServiceRevenue();
+}
+
+function renderServiceRevenue() {
+  const revenueByService = appointments.reduce((acc, apt) => {
+    if (!apt.service_name) return acc;
+    acc[apt.service_name] = (acc[apt.service_name] || 0) + (apt.service_price || 0);
+    return acc;
+  }, {});
+
+  const serviceRevenueList = document.getElementById('service-revenue-list');
+  if (!serviceRevenueList) return;
+
+  const entries = Object.entries(revenueByService).sort((a, b) => b[1] - a[1]);
+  if (entries.length === 0) {
+    serviceRevenueList.innerHTML = '<p class="empty-state-message">Revenue will appear here after your first appointments.</p>';
+    return;
+  }
+
+  serviceRevenueList.innerHTML = `
+    <table>
+      <thead>
+        <tr><th>Service</th><th>Revenue</th></tr>
+      </thead>
+      <tbody>
+        ${entries.map(([service, amount]) => `
+          <tr>
+            <td>${service}</td>
+            <td>$${amount.toFixed(2)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
 }
 
 // Add notification

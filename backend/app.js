@@ -47,17 +47,42 @@ io.on('connection', (socket) => {
       socket.join(`barber_${payload.barberId}`);
     }
   });
-  socket.on('disconnect', () => {
-    console.log('Socket disconnected:', socket.id);
+
+  socket.on('client_booking_started', async (payload) => {
+    try {
+      if (!payload || !payload.shopId) return;
+      const shopResult = await dbModule.query('SELECT owner_id FROM barber_shops WHERE id = $1', [payload.shopId]);
+      if (shopResult.rows.length === 0) return;
+      const ownerId = shopResult.rows[0].owner_id;
+      io.to(`barber_${ownerId}`).emit('client_booking_started', {
+        shopId: payload.shopId,
+        shopName: payload.shopName,
+        clientName: payload.clientName,
+        step: payload.step
+      });
+    } catch (err) {
+      console.error('Socket activity error:', err);
+    }
   });
-});
 
-// Auto-run migrations on startup
-const dbModule = require('./config/db');
+  socket.on('client_booking_confirmed', async (payload) => {
+    try {
+      if (!payload || !payload.shopId) return;
+      const shopResult = await dbModule.query('SELECT owner_id FROM barber_shops WHERE id = $1', [payload.shopId]);
+      if (shopResult.rows.length === 0) return;
+      const ownerId = shopResult.rows[0].owner_id;
+      io.to(`barber_${ownerId}`).emit('client_booking_confirmed', {
+        shopId: payload.shopId,
+        shopName: payload.shopName,
+        clientName: payload.clientName,
+        serviceName: payload.serviceName,
+        startTime: payload.startTime
+      });
+    } catch (err) {
+      console.error('Socket confirmation error:', err);
+    }
+  });
 
-async function runMigrations() {
-  try {
-    const dbInfo = await dbModule.init();
     const pool = dbInfo.pool;
 
     if (dbInfo.type === 'pg') {

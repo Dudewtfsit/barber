@@ -4,6 +4,13 @@ let selectedShop = null;
 let selectedService = null;
 let selectedDateTime = null;
 let allShops = [];
+let socket = null;
+let bookingActivityState = {
+  shopSelected: false,
+  serviceSelected: false,
+  timeSelected: false,
+  bookingConfirmed: false
+};
 
 function escapeHtml(value) {
   return String(value || '')
@@ -18,6 +25,49 @@ let currentServices = [];
 
 if (!AuthUtils.isLoggedIn()) {
   window.location = 'login.html';
+} else {
+  initializeBookingSocket();
+}
+
+function initializeBookingSocket() {
+  try {
+    const API_BASE = window.API_BASE || (location.hostname === 'localhost' ? 'http://localhost:3002' : 'https://barber-1-ovpr.onrender.com');
+    socket = io(API_BASE, {
+      auth: { token: AuthUtils.getToken() }
+    });
+
+    socket.on('connect', () => {
+      console.log('Booking socket connected');
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Booking socket disconnected');
+    });
+  } catch (error) {
+    console.warn('Socket initialization failed:', error);
+  }
+}
+
+function emitClientActivity(step) {
+  if (!socket || !socket.connected || !selectedShop) return;
+  const user = AuthUtils.getUserFromToken() || {};
+  const clientName = user.name || user.email || 'Client';
+
+  if (step === 'shop' && bookingActivityState.shopSelected) return;
+  if (step === 'service' && bookingActivityState.serviceSelected) return;
+  if (step === 'time' && bookingActivityState.timeSelected) return;
+
+  if (step === 'shop') bookingActivityState.shopSelected = true;
+  if (step === 'service') bookingActivityState.serviceSelected = true;
+  if (step === 'time') bookingActivityState.timeSelected = true;
+
+  socket.emit('client_booking_started', {
+    shopId: selectedShop.id,
+    shopName: selectedShop.name,
+    clientId: user.id,
+    clientName,
+    step
+  });
 }
 
 function updateNavigation() {
@@ -141,6 +191,7 @@ function selectShop(shop) {
   selectedService = null;
   selectedDateTime = null;
   updateLiveSummary();
+  emitClientActivity('shop');
   nextStep();
 }
 
@@ -188,6 +239,7 @@ function selectService(service) {
   document.getElementById('appointment-date').value = '';
   document.getElementById('appointment-time').innerHTML = '<option value="">Select a time</option>';
   updateLiveSummary();
+  emitClientActivity('service');
   nextStep();
 }
 
@@ -216,6 +268,7 @@ async function loadTimeSlots() {
 
     populateTimeSelect(slots);
     helper.textContent = `${slots.length} live slots available for this date.`;
+    emitClientActivity('time');
   } catch (error) {
     console.warn('Live slot lookup failed, using fallback slots:', error);
     helper.textContent = 'Live slot lookup is unavailable, showing standard shop times.';
@@ -313,6 +366,17 @@ document.getElementById('confirm-booking').addEventListener('click', async () =>
         startTime
       })
     });
+    if (socket && socket.connected) {
+      const user = AuthUtils.getUserFromToken() || {};
+      socket.emit('client_booking_confirmed', {
+        shopId: selectedShop.id,
+        shopName: selectedShop.name,
+        clientId: user.id,
+        clientName: user.name || user.email || 'Client',
+        serviceName: selectedService.name,
+        startTime
+      });
+    }
     AuthUtils.showSuccess('Appointment booked successfully! Redirecting...');
     setTimeout(() => window.location = 'dashboard.html', 1500);
   } catch (error) {
