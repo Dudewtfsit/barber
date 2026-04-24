@@ -135,11 +135,28 @@ async function runSqliteStatements(pool, sql) {
   }
 }
 
+async function postgresSchemaExists(pool) {
+  const result = await pool.query(`
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = 'users'
+    ) AS exists
+  `);
+
+  return result.rows[0] && result.rows[0].exists;
+}
+
 async function runMigrations() {
   const dbInfo = await dbModule.init();
   const pool = dbInfo.pool;
 
   if (dbInfo.type === 'pg') {
+    if (await postgresSchemaExists(pool)) {
+      console.log('Postgres schema already exists, skipping bootstrap migrations');
+      return;
+    }
+
     const schemaSQL = fs.readFileSync(
       path.join(__dirname, 'migrations', 'schema.sql'),
       'utf8'
