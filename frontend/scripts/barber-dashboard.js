@@ -1,679 +1,404 @@
-// Barber Dashboard Script
-// Connects barber and client real-time, manages appointments, services, shop info
+const dayLabels = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-let currentUser = null;
-let barberShop = null;
-let appointments = [];
-let clients = new Map();
-let unreadNotifications = 0;
-let activityLogs = [];
-let socket = null;
+let currentAppointments = [];
+let currentServices = [];
+let currentHours = [];
+let dashboardSocket = null;
 
-// Initialize dashboard
-document.addEventListener('DOMContentLoaded', async () => {
-  const token = AuthUtils.getToken();
-  if (!token) {
+function requireBarberAccess() {
+  if (!AuthUtils.isLoggedIn()) {
     window.location = 'login.html';
-    return;
+    return false;
   }
 
-  const user = AuthUtils.getUserFromToken();
-  if (user.role !== 'barber') {
+  if (AuthUtils.getUserRole() !== 'barber') {
     window.location = 'dashboard.html';
-    return;
+    return false;
   }
 
-  currentUser = user;
-  document.getElementById('barber-name').textContent = user.email;
+  return true;
+}
 
-  // Initialize Socket.IO for real-time updates
-  initializeSocket();
+function formatDateTime(isoValue) {
+  const date = new Date(isoValue);
+  return {
+    date: date.toLocaleDateString(undefined, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric'
+    }),
+    time: date.toLocaleTimeString([], {
+      hour: 'numeric',
+      minute: '2-digit'
+    })
+  };
+}
 
-  // Setup sidebar navigation
-  setupNavigation();
+function createHoursForm() {
+  const form = document.getElementById('hours-form');
+  form.innerHTML = dayLabels.map((label, index) => `
+    <div class="hours-row" data-day="${index}">
+      <div class="hours-day">${label}</div>
+      <label class="toggle-line">
+        <input type="checkbox" data-hours-enabled="${index}">
+        <span>Open</span>
+      </label>
+      <input type="time" data-hours-start="${index}" value="09:00">
+      <input type="time" data-hours-end="${index}" value="17:00">
+    </div>
+  `).join('');
+}
 
-  // Load initial data
-  await loadBarberData();
-  await loadAppointments();
-  await loadServices();
+function applyHoursToForm(hours) {
+  dayLabels.forEach((_, index) => {
+    const enabled = document.querySelector(`[data-hours-enabled="${index}"]`);
+    const start = document.querySelector(`[data-hours-start="${index}"]`);
+    const end = document.querySelector(`[data-hours-end="${index}"]`);
+    const rowData = hours.find((item) => Number(item.day_of_week) === index);
 
-  // Setup event listeners
-  setupEventListeners();
+    enabled.checked = Boolean(rowData);
+    start.disabled = !rowData;
+    end.disabled = !rowData;
+    start.value = rowData ? String(rowData.start_hour).slice(0, 5) : '09:00';
+    end.value = rowData ? String(rowData.end_hour).slice(0, 5) : '17:00';
+  });
+}
 
-  // Refresh data periodically
-  setInterval(loadAppointments, 30000); // Every 30 seconds
-  setInterval(updateStats, 60000); // Every 1 minute
-});
+function collectHoursFromForm() {
+  return dayLabels.map((_, index) => {
+    const enabled = document.querySelector(`[data-hours-enabled="${index}"]`).checked;
+    const start = document.querySelector(`[data-hours-start="${index}"]`).value;
+    const end = document.querySelector(`[data-hours-end="${index}"]`).value;
 
-// Socket.IO initialization for real-time updates
+    if (!enabled || !start || !end) return null;
+    return {
+      day_of_week: index,
+      start_hour: start,
+      end_hour: end
+    };
+  }).filter(Boolean);
+}
+
+function addActivity(message, type = 'info') {
+  const feed = document.getElementById('activity-feed');
+  const item = document.createElement('div');
+  item.className = `activity-item activity-${type}`;
+  item.innerHTML = `<strong>${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</strong><p>${message}</p>`;
+  feed.prepend(item);
+
+  while (feed.children.length > 8) {
+    feed.removeChild(feed.lastElementChild);
+  }
+}
+
 function initializeSocket() {
-  const API_BASE = window.API_BASE || (location.hostname === 'localhost' ? 'http://localhost:3002' : 'https://barber-1-ovpr.onrender.com');
-  socket = io(API_BASE, {
+  dashboardSocket = io(window.API_BASE, {
     auth: { token: AuthUtils.getToken() }
   });
 
-  socket.on('connect', () => {
-    console.log('Connected to real-time server');
-    document.getElementById('online-status').textContent = '● Online';
-    document.getElementById('online-status').style.color = '#27ae60';
-    
-    // Join barber-specific room
-    socket.emit('join', `barber_${currentUser.id}`);
+  dashboardSocket.on('connect', () => {
+    document.getElementById('online-status').textContent = 'Live';
+    const user = AuthUtils.getUserFromToken();
+    dashboardSocket.emit('join', `barber_${user.id}`);
+    addActivity('Realtime dashboard connected.', 'success');
   });
 
-  socket.on('disconnect', () => {
-    console.log('Disconnected from real-time server');
-    document.getElementById('online-status').textContent = '● Offline';
-    document.getElementById('online-status').style.color = '#e74c3c';
+  dashboardSocket.on('disconnect', () => {
+    document.getElementById('online-status').textContent = 'Offline';
+    addActivity('Realtime dashboard disconnected.', 'warning');
   });
 
-  // Listen for new appointments from clients
-  socket.on('appointment_created', (data) => {
-    const serviceName = data.serviceName || data.service || 'a service';
-    const clientName = data.clientName || 'Client';
-    console.log('New appointment from client:', data);
-    addNotification(`New booking from ${clientName}: ${serviceName}`, 'info');
-    addActivityLog(`New booking started by ${clientName} for ${serviceName}`);
-    unreadNotifications++;
-    updateNotificationBadge();
-    loadAppointments(); // Refresh appointments list
+  dashboardSocket.on('client_booking_started', (payload) => {
+    const clientName = payload.clientName || 'Client';
+    const stepMap = {
+      shop: 'started browsing your shop',
+      service: 'is choosing a service',
+      time: 'is looking at available times'
+    };
+    addActivity(`${clientName} ${stepMap[payload.step] || 'is active on your page'}.`);
   });
 
-  // Listen for appointment updates
-  socket.on('appointment_updated', (data) => {
-    addNotification(`Appointment updated: ${data.message}`, 'info');
-    addActivityLog(`Appointment update: ${data.message}`);
+  dashboardSocket.on('client_booking_confirmed', (payload) => {
+    addActivity(`${payload.clientName || 'Client'} confirmed ${payload.serviceName || 'a service'}.`, 'success');
     loadAppointments();
   });
 
-  // Listen for appointment cancellations
-  socket.on('appointment_cancelled', (data) => {
-    const clientName = data.clientName || 'Client';
-    addNotification(`Appointment cancelled by ${clientName}`, 'warning');
-    addActivityLog(`Appointment cancelled by ${clientName}`);
+  dashboardSocket.on('appointment_created', (payload) => {
+    addActivity(`New booking from ${payload.clientName || 'Client'} for ${payload.serviceName || 'a service'}.`, 'success');
     loadAppointments();
   });
 
-  // Listen for client activity
-  socket.on('client_booking_started', (data) => {
-    const clientName = data.clientName || 'Client';
-    const shopName = data.shopName ? ` at ${data.shopName}` : '';
-    let action = 'browsing your shop';
-    if (data.step === 'service') action = 'selecting a service';
-    if (data.step === 'time') action = 'choosing a time slot';
-    const message = `${clientName} is ${action}${shopName}`;
-    addNotification(message, 'info');
-    addActivityLog(message);
-    unreadNotifications++;
-    updateNotificationBadge();
+  dashboardSocket.on('appointment_updated', () => {
+    addActivity('An appointment status was updated.', 'info');
+    loadAppointments();
   });
 
-  socket.on('client_booking_confirmed', (data) => {
-    const clientName = data.clientName || 'Client';
-    const serviceName = data.serviceName || 'a service';
-    const message = `${clientName} confirmed booking for ${serviceName}`;
-    addNotification(message, 'success');
-    addActivityLog(message);
-    unreadNotifications++;
-    updateNotificationBadge();
+  dashboardSocket.on('appointment_cancelled', (payload) => {
+    addActivity(`${payload.clientName || 'A client'} cancelled an appointment.`, 'warning');
     loadAppointments();
   });
 }
 
-// Sidebar navigation setup
-function setupNavigation() {
-  document.querySelectorAll('.sidebar-item').forEach(item => {
-    item.addEventListener('click', () => {
-      const section = item.getAttribute('data-section');
-      
-      // Remove active class from all items
-      document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
-      item.classList.add('active');
-      
-      // Hide all sections
-      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-      
-      // Show selected section
-      document.getElementById(section).classList.add('active');
-      document.getElementById('page-title').textContent = item.textContent.trim();
-    });
-  });
-}
-
-// Load barber shop info
-async function loadBarberData() {
+async function loadShop() {
   try {
-    const data = await apiFetch('/api/shop/my-shop');
-    barberShop = data;
-    
-    // Populate shop info form
-    if (data) {
-      document.getElementById('shop-name').value = data.name || '';
-      document.getElementById('shop-address').value = data.address || '';
-      document.getElementById('shop-city').value = data.city || '';
-      document.getElementById('shop-state').value = data.state || '';
-      document.getElementById('shop-phone').value = data.phone || '';
-      document.getElementById('shop-description').value = data.description || '';
-      
-      // Load shop hours
-      loadShopHours();
+    const shop = await apiFetch('/api/shop/my-shop');
+    if (!shop) return;
+
+    document.getElementById('shop-name').value = shop.name || '';
+    document.getElementById('shop-address').value = shop.address || '';
+    document.getElementById('shop-city').value = shop.city || '';
+    document.getElementById('shop-state').value = shop.state || '';
+    document.getElementById('shop-phone').value = shop.phone || '';
+    document.getElementById('shop-description').value = shop.description || '';
+  } catch (error) {
+    if (error.status !== 404) {
+      AuthUtils.showError(error.message || 'Could not load shop.');
     }
-  } catch (err) {
-    console.log('Shop not created yet');
   }
 }
 
-// Load appointments
+async function loadHours() {
+  try {
+    currentHours = await apiFetch('/api/shop/my-hours');
+    applyHoursToForm(currentHours);
+  } catch (error) {
+    AuthUtils.showError(error.message || 'Could not load working hours.');
+  }
+}
+
+async function loadServices() {
+  try {
+    currentServices = await apiFetch('/api/services/my-services');
+    renderServices();
+  } catch (error) {
+    AuthUtils.showError(error.message || 'Could not load services.');
+  }
+}
+
+function renderServices() {
+  const list = document.getElementById('services-list');
+  if (currentServices.length === 0) {
+    list.innerHTML = '<p class="empty-state-message">No services yet. Add your first one so clients can start booking.</p>';
+    return;
+  }
+
+  list.innerHTML = currentServices.map((service) => `
+    <article class="list-card">
+      <div>
+        <h3>${service.name}</h3>
+        <p>$${Number(service.price).toFixed(2)} • ${service.duration_minutes} minutes</p>
+      </div>
+      <button class="btn btn-secondary" data-delete-service="${service.id}">Delete</button>
+    </article>
+  `).join('');
+
+  list.querySelectorAll('[data-delete-service]').forEach((button) => {
+    button.addEventListener('click', () => deleteService(button.dataset.deleteService));
+  });
+}
+
+async function deleteService(serviceId) {
+  const confirmed = window.confirm('Delete this service?');
+  if (!confirmed) return;
+
+  try {
+    await apiFetch(`/api/services/${serviceId}`, { method: 'DELETE' });
+    AuthUtils.showSuccess('Service deleted.');
+    loadServices();
+  } catch (error) {
+    AuthUtils.showError(error.message || 'Could not delete service.');
+  }
+}
+
 async function loadAppointments() {
   try {
-    const response = await apiFetch('/api/appointments/barber-appointments');
-    appointments = response || [];
-    
-    // Filter and display appointments
-    displayAppointments(appointments);
+    currentAppointments = await apiFetch('/api/appointments/barber-appointments');
+    renderAppointments();
     updateStats();
-    await loadClients();
-  } catch (err) {
-    console.error('Error loading appointments:', err);
+  } catch (error) {
+    document.getElementById('appointments-list').innerHTML = '<p class="empty-state-message">Could not load appointments.</p>';
+    AuthUtils.showError(error.message || 'Could not load appointments.');
   }
 }
 
-// Display appointments in cards
-function displayAppointments(appts) {
-  const upcoming = appts
-    .filter(a => new Date(a.start_time) >= new Date())
-    .sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+function updateStats() {
+  const now = Date.now();
+  const today = new Date().toISOString().slice(0, 10);
+  const todayCount = currentAppointments.filter((appointment) => String(appointment.start_time).slice(0, 10) === today).length;
+  const upcoming = currentAppointments.filter((appointment) => appointment.status === 'booked' && new Date(appointment.start_time).getTime() > now);
+  const revenue = currentAppointments
+    .filter((appointment) => appointment.status !== 'cancelled')
+    .reduce((sum, appointment) => sum + Number(appointment.service_price || 0), 0);
+  const clientCount = new Set(currentAppointments.map((appointment) => appointment.client_id)).size;
 
-  const dashboardContainer = document.getElementById('upcoming-appointments');
-  const allContainer = document.getElementById('all-appointments');
-  
-  if (upcoming.length === 0) {
-    dashboardContainer.innerHTML = '<div class="empty-state"><h3>No upcoming appointments</h3></div>';
-  } else {
-    dashboardContainer.innerHTML = upcoming.slice(0, 6).map(apt => createAppointmentCard(apt)).join('');
-  }
-
-  // Filter based on selected status
-  const filter = document.getElementById('appointment-filter')?.value || 'all';
-  const filtered = filter === 'all' ? appts : appts.filter(a => a.status === filter);
-  
-  if (filtered.length === 0) {
-    allContainer.innerHTML = '<div class="empty-state"><h3>No appointments found</h3></div>';
-  } else {
-    allContainer.innerHTML = filtered.map(apt => createAppointmentCard(apt)).join('');
-  }
-
-  // Add event listeners to action buttons
-  document.querySelectorAll('.btn-accept').forEach(btn => {
-    btn.addEventListener('click', (e) => updateAppointmentStatus(e.target.dataset.aptId, 'done'));
-  });
-
-  document.querySelectorAll('.btn-done').forEach(btn => {
-    btn.addEventListener('click', (e) => updateAppointmentStatus(e.target.dataset.aptId, 'done'));
-  });
-
-  document.querySelectorAll('.btn-cancel').forEach(btn => {
-    btn.addEventListener('click', (e) => cancelAppointment(e.target.dataset.aptId));
-  });
+  document.getElementById('stat-today').textContent = todayCount;
+  document.getElementById('stat-upcoming').textContent = upcoming.length;
+  document.getElementById('stat-revenue').textContent = `$${revenue.toFixed(2)}`;
+  document.getElementById('stat-clients').textContent = clientCount;
 }
 
-// Create appointment card HTML
-function createAppointmentCard(apt) {
-  const startTime = new Date(apt.start_time);
-  const endTime = new Date(apt.end_time);
-  const timeStr = startTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-  const dateStr = startTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  
-  let statusBadge = `<span class="badge badge-warning">${apt.status}</span>`;
-  if (apt.status === 'done') statusBadge = `<span class="badge badge-success">${apt.status}</span>`;
-  if (apt.status === 'cancelled') statusBadge = `<span class="badge badge-danger">${apt.status}</span>`;
+function renderAppointments() {
+  const filter = document.getElementById('barber-appointment-filter').value;
+  const appointments = filter === 'all'
+    ? currentAppointments
+    : currentAppointments.filter((appointment) => appointment.status === filter);
+  const list = document.getElementById('appointments-list');
 
-  let actionButtons = '';
-  if (apt.status === 'booked') {
-    actionButtons = `
-      <div class="appointment-actions">
-        <button class="btn-small btn-done" data-apt-id="${apt.id}" onclick="updateAppointmentStatus(${apt.id}, 'done')">Mark Done</button>
-        <button class="btn-small btn-cancel" data-apt-id="${apt.id}" onclick="cancelAppointment(${apt.id})">Cancel</button>
-      </div>
-    `;
+  if (appointments.length === 0) {
+    list.innerHTML = '<p class="empty-state-message">No appointments match this filter.</p>';
+    return;
   }
 
-  const clientName = apt.client_name || `Client ${apt.client_id}`;
-  const serviceName = apt.service_name || `Service ${apt.service_id}`;
-
-  return `
-    <div class="appointment-card ${apt.status}">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <div>
-          <div class="appointment-time">${timeStr}</div>
-          <div style="font-size: 0.9rem; color: #95a5a6;">${dateStr}</div>
+  list.innerHTML = appointments.map((appointment) => {
+    const formatted = formatDateTime(appointment.start_time);
+    return `
+      <article class="appointment-row-card">
+        <div class="appointment-row-main">
+          <div class="appointment-row-top">
+            <h3>${appointment.client_name}</h3>
+            <span class="status-chip status-${appointment.status}">${appointment.status}</span>
+          </div>
+          <p class="appointment-row-service">${appointment.service_name}</p>
+          <div class="appointment-row-meta">
+            <span>${formatted.date}</span>
+            <span>${formatted.time}</span>
+            <span>${appointment.client_email || ''}</span>
+            <span>$${Number(appointment.service_price || 0).toFixed(2)}</span>
+          </div>
         </div>
-        ${statusBadge}
-      </div>
-      <div class="appointment-client">👤 ${clientName}</div>
-      <div class="appointment-service">💼 ${serviceName}</div>
-      ${actionButtons}
-    </div>
-  `;
+        <div class="appointment-row-actions">
+          ${appointment.status === 'booked' ? `<button class="btn btn-primary" data-mark-done="${appointment.id}">Mark done</button>` : ''}
+          ${appointment.status === 'booked' ? `<button class="btn btn-secondary" data-cancel-appointment="${appointment.id}">Cancel</button>` : ''}
+        </div>
+      </article>
+    `;
+  }).join('');
+
+  list.querySelectorAll('[data-mark-done]').forEach((button) => {
+    button.addEventListener('click', () => updateAppointmentStatus(button.dataset.markDone, 'done'));
+  });
+
+  list.querySelectorAll('[data-cancel-appointment]').forEach((button) => {
+    button.addEventListener('click', () => updateAppointmentStatus(button.dataset.cancelAppointment, 'cancelled'));
+  });
 }
 
-// Update appointment status
-async function updateAppointmentStatus(aptId, status) {
+async function updateAppointmentStatus(appointmentId, status) {
   try {
-    await apiFetch(`/api/appointments/${aptId}/status`, {
+    await apiFetch(`/api/appointments/${appointmentId}/status`, {
       method: 'PUT',
       body: JSON.stringify({ status })
     });
-    
-    addNotification(`Appointment marked as ${status}`, 'success');
+    AuthUtils.showSuccess(`Appointment marked ${status}.`);
     loadAppointments();
-    
-    // Notify client via Socket.IO
-    if (socket) {
-      socket.emit('barber_appointment_updated', {
-        appointmentId: aptId,
-        status: status
-      });
-    }
-  } catch (err) {
-    addNotification('Error updating appointment', 'error');
+  } catch (error) {
+    AuthUtils.showError(error.message || 'Could not update appointment.');
   }
 }
 
-// Cancel appointment
-async function cancelAppointment(aptId) {
-  if (confirm('Are you sure you want to cancel this appointment?')) {
-    try {
-      await apiFetch(`/api/appointments/${aptId}/status`, {
-        method: 'PUT',
-        body: JSON.stringify({ status: 'cancelled' })
-      });
-      
-      addNotification('Appointment cancelled', 'success');
-      loadAppointments();
-      
-      // Notify client via Socket.IO
-      if (socket) {
-        socket.emit('barber_appointment_cancelled', {
-          appointmentId: aptId
-        });
-      }
-    } catch (err) {
-      addNotification('Error cancelling appointment', 'error');
-    }
-  }
-}
+async function saveShop(event) {
+  event.preventDefault();
+  const submitButton = event.target.querySelector('button[type="submit"]');
+  AuthUtils.setLoading(submitButton, true, 'Saving...');
 
-// Load clients
-async function loadClients() {
   try {
-    // Build client dashboard from appointment history
-    const appts = appointments;
-    const clientMap = new Map();
-    
-    appts.forEach(apt => {
-      const clientId = apt.client_id;
-      const clientName = apt.client_name || `Client ${clientId}`;
-      if (!clientMap.has(clientId)) {
-        clientMap.set(clientId, {
-          id: clientId,
-          name: clientName,
-          bookings: 0,
-          spent: 0,
-          lastAppointment: null
-        });
-      }
-      
-      const client = clientMap.get(clientId);
-      client.bookings++;
-      client.spent += apt.service_price || 0;
-      if (!client.lastAppointment || new Date(apt.start_time) > new Date(client.lastAppointment)) {
-        client.lastAppointment = apt.start_time;
-      }
+    await apiFetch('/api/shop', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: document.getElementById('shop-name').value.trim(),
+        address: document.getElementById('shop-address').value.trim(),
+        city: document.getElementById('shop-city').value.trim(),
+        state: document.getElementById('shop-state').value.trim(),
+        phone: document.getElementById('shop-phone').value.trim(),
+        description: document.getElementById('shop-description').value.trim()
+      })
     });
-
-    clients = clientMap;
-    displayClients(clientMap);
-  } catch (err) {
-    console.error('Error loading clients:', err);
+    AuthUtils.showSuccess('Shop saved.');
+  } catch (error) {
+    AuthUtils.showError(error.message || 'Could not save shop.');
+  } finally {
+    AuthUtils.setLoading(submitButton, false);
   }
 }
 
-// Display clients in table
-function displayClients(clientMap) {
-  const tbody = document.getElementById('clients-body');
-  
-  if (clientMap.size === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px;">No clients yet</td></tr>';
-    document.getElementById('total-clients').textContent = '0';
-    return;
-  }
-
-  tbody.innerHTML = Array.from(clientMap.values())
-    .sort((a, b) => new Date(b.lastAppointment) - new Date(a.lastAppointment))
-    .map(client => `
-      <tr>
-        <td>Client ${client.id}</td>
-        <td><small>client-${client.id}@example.com</small></td>
-        <td>${client.bookings}</td>
-        <td>$${client.spent.toFixed(2)}</td>
-        <td>${new Date(client.lastAppointment).toLocaleDateString()}</td>
-      </tr>
-    `)
-    .join('');
-
-  document.getElementById('total-clients').textContent = clientMap.size;
-}
-
-// Load services
-async function loadServices() {
-  try {
-    const response = await apiFetch('/api/services/my-services');
-    const services = response || [];
-    
-    const tbody = document.getElementById('services-body');
-    if (services.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">No services added yet</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = services.map(service => `
-      <tr>
-        <td>${service.name}</td>
-        <td>$${service.price}</td>
-        <td>${service.duration_minutes} min</td>
-        <td><button class="btn-small" onclick="deleteService(${service.id})">Delete</button></td>
-      </tr>
-    `).join('');
-  } catch (err) {
-    console.error('Error loading services:', err);
-  }
-}
-
-// Add service
-async function addService() {
-  const name = document.getElementById('service-name').value;
-  const price = document.getElementById('service-price').value;
-  const duration = document.getElementById('service-duration').value;
-
-  if (!name || !price || !duration) {
-    addNotification('Please fill all fields', 'error');
-    return;
-  }
+async function addService(event) {
+  event.preventDefault();
+  const submitButton = event.target.querySelector('button[type="submit"]');
+  AuthUtils.setLoading(submitButton, true, 'Adding...');
 
   try {
     await apiFetch('/api/services', {
       method: 'POST',
       body: JSON.stringify({
-        name,
-        price: parseFloat(price),
-        duration_minutes: parseInt(duration)
+        name: document.getElementById('service-name').value.trim(),
+        price: Number(document.getElementById('service-price').value),
+        duration_minutes: Number(document.getElementById('service-duration').value)
       })
     });
-
-    addNotification('Service added successfully', 'success');
-    document.getElementById('service-name').value = '';
-    document.getElementById('service-price').value = '';
-    document.getElementById('service-duration').value = '';
+    event.target.reset();
+    AuthUtils.showSuccess('Service added.');
     loadServices();
-  } catch (err) {
-    addNotification('Error adding service', 'error');
+  } catch (error) {
+    AuthUtils.showError(error.message || 'Could not add service.');
+  } finally {
+    AuthUtils.setLoading(submitButton, false);
   }
 }
 
-// Delete service
-async function deleteService(serviceId) {
-  if (confirm('Delete this service?')) {
-    try {
-      await apiFetch(`/api/services/${serviceId}`, { method: 'DELETE' });
-      addNotification('Service deleted', 'success');
-      loadServices();
-    } catch (err) {
-      addNotification('Error deleting service', 'error');
-    }
-  }
-}
-
-// Save shop info
-async function saveShop() {
-  const shopData = {
-    name: document.getElementById('shop-name').value,
-    address: document.getElementById('shop-address').value,
-    city: document.getElementById('shop-city').value,
-    state: document.getElementById('shop-state').value,
-    phone: document.getElementById('shop-phone').value,
-    description: document.getElementById('shop-description').value
-  };
-
-  if (!shopData.name || !shopData.address) {
-    addNotification('Please fill required fields', 'error');
-    return;
-  }
-
-  try {
-    await apiFetch('/api/shop', {
-      method: 'POST',
-      body: JSON.stringify(shopData)
-    });
-    addNotification('Shop info saved successfully', 'success');
-  } catch (err) {
-    addNotification('Error saving shop info', 'error');
-  }
-}
-
-// Load and display shop hours
-async function loadShopHours() {
-  try {
-    const response = await apiFetch('/api/shop/hours/my-hours');
-    const hours = response || [];
-    
-    const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    let hoursForm = '';
-
-    daysOfWeek.forEach((day, index) => {
-      const dayHours = hours[index] || { start_hour: '09:00', end_hour: '17:00' };
-      hoursForm += `
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 15px; align-items: end;">
-          <div class="form-group" style="margin-bottom: 0;">
-            <label>${day}</label>
-          </div>
-          <div class="form-group" style="margin-bottom: 0;">
-            <input type="time" id="start-${index}" value="${dayHours.start_hour}" placeholder="Start">
-          </div>
-          <div class="form-group" style="margin-bottom: 0;">
-            <input type="time" id="end-${index}" value="${dayHours.end_hour}" placeholder="End">
-          </div>
-        </div>
-      `;
-    });
-
-    document.getElementById('hours-form').innerHTML = hoursForm;
-  } catch (err) {
-    console.error('Error loading hours:', err);
-  }
-}
-
-// Save hours
 async function saveHours() {
-  const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const hours = [];
-
-  daysOfWeek.forEach((day, index) => {
-    const startTime = document.getElementById(`start-${index}`)?.value;
-    const endTime = document.getElementById(`end-${index}`)?.value;
-    
-    if (startTime && endTime) {
-      hours.push({
-        day_of_week: index,
-        start_hour: startTime,
-        end_hour: endTime
-      });
-    }
-  });
+  const button = document.getElementById('save-hours-btn');
+  AuthUtils.setLoading(button, true, 'Saving...');
 
   try {
     await apiFetch('/api/shop/hours', {
-      method: 'POST',
-      body: JSON.stringify({ hours })
+      method: 'PUT',
+      body: JSON.stringify({ hours: collectHoursFromForm() })
     });
-    addNotification('Hours saved successfully', 'success');
-  } catch (err) {
-    addNotification('Error saving hours', 'error');
+    AuthUtils.showSuccess('Working hours updated.');
+    loadHours();
+  } catch (error) {
+    AuthUtils.showError(error.message || 'Could not save working hours.');
+  } finally {
+    AuthUtils.setLoading(button, false);
   }
 }
 
-// Update stats on dashboard
-function updateStats() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-
-  // Today's appointments
-  const todayAppts = appointments.filter(a => {
-    const apptDate = new Date(a.start_time);
-    apptDate.setHours(0, 0, 0, 0);
-    return apptDate.getTime() === today.getTime() && a.status === 'booked';
+function setupEvents() {
+  document.getElementById('logout-link').addEventListener('click', (event) => {
+    event.preventDefault();
+    AuthUtils.logout();
   });
 
-  // Pending appointments (not done or cancelled)
-  const pending = appointments.filter(a => a.status === 'booked');
+  document.getElementById('shop-form').addEventListener('submit', saveShop);
+  document.getElementById('service-form').addEventListener('submit', addService);
+  document.getElementById('save-hours-btn').addEventListener('click', saveHours);
+  document.getElementById('barber-appointment-filter').addEventListener('change', renderAppointments);
 
-  // Today's revenue
-  const todayRevenue = todayAppts.reduce((sum, a) => sum + (a.service_price || 0), 0);
-
-  // Total revenue
-  const totalRevenue = appointments.reduce((sum, a) => sum + (a.service_price || 0), 0);
-
-  // Update stats
-  document.getElementById('today-count').textContent = todayAppts.length;
-  document.getElementById('pending-count').textContent = pending.length;
-  document.getElementById('revenue-today').textContent = `$${todayRevenue.toFixed(2)}`;
-  document.getElementById('total-clients').textContent = clients.size;
-  
-  // Analytics stats
-  document.getElementById('total-revenue').textContent = `$${totalRevenue.toFixed(2)}`;
-  document.getElementById('total-appointments').textContent = appointments.length;
-
-  // Completion rate
-  const completed = appointments.filter(a => a.status === 'done').length;
-  const completionRate = appointments.length > 0 ? Math.round((completed / appointments.length) * 100) : 0;
-  document.getElementById('completion-rate').textContent = `${completionRate}%`;
-
-  // Cancellation rate
-  const cancelled = appointments.filter(a => a.status === 'cancelled').length;
-  const cancellationRate = appointments.length > 0 ? Math.round((cancelled / appointments.length) * 100) : 0;
-  document.getElementById('cancellation-rate').textContent = `${cancellationRate}%`;
-
-  renderServiceRevenue();
-}
-
-function renderServiceRevenue() {
-  const revenueByService = appointments.reduce((acc, apt) => {
-    if (!apt.service_name) return acc;
-    acc[apt.service_name] = (acc[apt.service_name] || 0) + (apt.service_price || 0);
-    return acc;
-  }, {});
-
-  const serviceRevenueList = document.getElementById('service-revenue-list');
-  if (!serviceRevenueList) return;
-
-  const entries = Object.entries(revenueByService).sort((a, b) => b[1] - a[1]);
-  if (entries.length === 0) {
-    serviceRevenueList.innerHTML = '<p class="empty-state-message">Revenue will appear here after your first appointments.</p>';
-    return;
-  }
-
-  serviceRevenueList.innerHTML = `
-    <table>
-      <thead>
-        <tr><th>Service</th><th>Revenue</th></tr>
-      </thead>
-      <tbody>
-        ${entries.map(([service, amount]) => `
-          <tr>
-            <td>${service}</td>
-            <td>$${amount.toFixed(2)}</td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>
-  `;
-}
-
-// Add notification
-function addNotification(message, type = 'info') {
-  const container = document.getElementById('notifications-container');
-  const notification = document.createElement('div');
-  notification.className = `notification ${type}`;
-  notification.textContent = message;
-  
-  container.insertBefore(notification, container.firstChild);
-  
-  // Auto remove after 5 seconds
-  setTimeout(() => notification.remove(), 5000);
-}
-
-// Render live activity feed
-function renderActivityFeed() {
-  const feed = document.getElementById('activity-feed');
-  if (!feed) return;
-  if (activityLogs.length === 0) {
-    feed.innerHTML = '<div class="empty-state"><h3>No live activity yet</h3></div>';
-    return;
-  }
-
-  feed.innerHTML = activityLogs
-    .map(entry => `
-      <div class="activity-item">
-        <strong>${entry.message}</strong>
-        <span>${entry.timestamp}</span>
-      </div>
-    `)
-    .join('');
-}
-
-function addActivityLog(message) {
-  activityLogs.unshift({
-    message,
-    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  });
-  if (activityLogs.length > 7) activityLogs.pop();
-  renderActivityFeed();
-}
-
-// Update notification badge
-function updateNotificationBadge() {
-  document.getElementById('unread-count').textContent = unreadNotifications;
-}
-
-// Close modal
-function closeModal(modalId) {
-  document.getElementById(modalId).classList.remove('show');
-}
-
-// Handle logout
-function handleLogout() {
-  AuthUtils.removeToken();
-  window.location = 'login.html';
-}
-
-// Setup event listeners
-function setupEventListeners() {
-  // Appointment filter
-  const filterSelect = document.getElementById('appointment-filter');
-  if (filterSelect) {
-    filterSelect.addEventListener('change', () => {
-      displayAppointments(appointments);
+  dayLabels.forEach((_, index) => {
+    document.querySelector(`[data-hours-enabled="${index}"]`).addEventListener('change', (event) => {
+      document.querySelector(`[data-hours-start="${index}"]`).disabled = !event.target.checked;
+      document.querySelector(`[data-hours-end="${index}"]`).disabled = !event.target.checked;
     });
-  }
-
-  // Click outside modal to close
-  window.addEventListener('click', (e) => {
-    const modal = document.getElementById('clientModal');
-    if (e.target === modal) {
-      modal.classList.remove('show');
-    }
   });
+}
+
+function personalizeDashboard() {
+  document.getElementById('barber-greeting').textContent = `${AuthUtils.getUserDisplayName()}, here is your shop dashboard`;
+}
+
+async function bootstrapDashboard() {
+  createHoursForm();
+  personalizeDashboard();
+  setupEvents();
+  initializeSocket();
+  await Promise.all([
+    loadShop(),
+    loadHours(),
+    loadServices(),
+    loadAppointments()
+  ]);
+}
+
+if (requireBarberAccess()) {
+  bootstrapDashboard();
 }

@@ -1,11 +1,9 @@
-// scripts/utils.js
-// Helper functions and utilities
+const API_BASE = window.API_BASE || (
+  location.hostname === 'localhost'
+    ? 'http://localhost:3002'
+    : 'https://barber-1-ovpr.onrender.com'
+);
 
-// API base (configurable via window.API_BASE).
-// Defaults to localhost backend for dev, otherwise uses the known backend host.
-const API_BASE = window.API_BASE || (location.hostname === 'localhost' ? 'http://localhost:3002' : 'https://barber-1-ovpr.onrender.com');
-
-// Token management
 function getToken() {
   return localStorage.getItem('token');
 }
@@ -21,9 +19,9 @@ function removeToken() {
 function getUserFromToken() {
   const token = getToken();
   if (!token) return null;
+
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload;
+    return JSON.parse(atob(token.split('.')[1]));
   } catch (error) {
     console.error('Invalid token:', error);
     return null;
@@ -31,7 +29,7 @@ function getUserFromToken() {
 }
 
 function isLoggedIn() {
-  return !!getToken();
+  return Boolean(getToken());
 }
 
 function getUserRole() {
@@ -39,51 +37,62 @@ function getUserRole() {
   return user ? user.role : null;
 }
 
-// API fetch wrapper: prepends API_BASE for relative paths
+function getUserDisplayName() {
+  const user = getUserFromToken();
+  return user ? (user.name || user.email || 'Guest') : 'Guest';
+}
+
 async function apiFetch(url, options = {}) {
   const token = getToken();
   const resolvedUrl = url.startsWith('http') ? url : `${API_BASE}${url}`;
-  const defaultOptions = {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { 'Authorization': 'Bearer ' + token })
-    }
+  const headers = {
+    ...(options.headers || {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {})
   };
-  const res = await fetch(resolvedUrl, { ...defaultOptions, ...options });
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    const err = new Error(`API error: ${res.status} ${text}`);
-    err.status = res.status;
-    throw err;
+
+  if (!headers['Content-Type'] && !(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
   }
-  // Try to parse JSON, but return text if not JSON
-  const contentType = res.headers.get('content-type') || '';
-  if (contentType.includes('application/json')) return res.json();
-  return res.text();
+
+  const response = await fetch(resolvedUrl, {
+    ...options,
+    headers
+  });
+
+  const contentType = response.headers.get('content-type') || '';
+  const isJson = contentType.includes('application/json');
+  const payload = isJson ? await response.json().catch(() => null) : await response.text().catch(() => '');
+
+  if (!response.ok) {
+    const message = payload && typeof payload === 'object'
+      ? (payload.message || payload.error || 'Request failed')
+      : (payload || `Request failed with status ${response.status}`);
+    const error = new Error(message);
+    error.status = response.status;
+    error.payload = payload;
+    throw error;
+  }
+
+  return payload;
 }
 
-// Logout function
 function logout() {
   removeToken();
   window.location = 'index.html';
 }
 
-// Input validation
 function validateEmail(email) {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
 function validatePassword(password) {
-  // At least 6 characters
-  return password.length >= 6;
+  return String(password || '').length >= 6;
 }
 
 function validateName(name) {
-  return name.trim().length >= 2;
+  return String(name || '').trim().length >= 2;
 }
 
-// Notification helpers
 function showNotification(message, type = 'info') {
   const notification = document.createElement('div');
   notification.className = `notification notification-${type}`;
@@ -93,25 +102,25 @@ function showNotification(message, type = 'info') {
   notification.style.right = '20px';
   notification.style.zIndex = '9999';
   notification.style.padding = '15px 20px';
-  notification.style.borderRadius = '4px';
-  notification.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
-  notification.style.maxWidth = '400px';
+  notification.style.borderRadius = '14px';
+  notification.style.boxShadow = '0 16px 40px rgba(15, 23, 42, 0.18)';
+  notification.style.maxWidth = '360px';
   notification.style.wordWrap = 'break-word';
-  
+
   if (type === 'success') {
-    notification.style.backgroundColor = '#28a745';
-    notification.style.color = 'white';
+    notification.style.backgroundColor = '#0f766e';
+    notification.style.color = '#f0fdfa';
   } else if (type === 'error') {
-    notification.style.backgroundColor = '#dc3545';
-    notification.style.color = 'white';
+    notification.style.backgroundColor = '#b91c1c';
+    notification.style.color = '#fef2f2';
   } else if (type === 'warning') {
-    notification.style.backgroundColor = '#ffc107';
-    notification.style.color = '#333';
+    notification.style.backgroundColor = '#facc15';
+    notification.style.color = '#422006';
   } else {
-    notification.style.backgroundColor = '#17a2b8';
-    notification.style.color = 'white';
+    notification.style.backgroundColor = '#0f172a';
+    notification.style.color = '#f8fafc';
   }
-  
+
   document.body.appendChild(notification);
   setTimeout(() => notification.remove(), 4000);
 }
@@ -128,26 +137,30 @@ function showWarning(message) {
   showNotification(message, 'warning');
 }
 
-// Loading state helpers
-function setLoading(element, isLoading) {
+function setLoading(element, isLoading, loadingText = 'Loading...') {
+  if (!element) return;
+
   if (isLoading) {
     element.disabled = true;
     element.dataset.originalText = element.textContent;
-    element.innerHTML = '<span style="display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.3); border-radius: 50%; border-top-color: white; animation: spin 0.8s linear infinite; margin-right: 8px;"></span>Loading...';
-  } else {
-    element.disabled = false;
-    element.textContent = element.dataset.originalText || 'Submit';
+    element.innerHTML = `<span class="button-spinner"></span>${loadingText}`;
+    return;
   }
+
+  element.disabled = false;
+  element.textContent = element.dataset.originalText || 'Submit';
 }
 
-// Export functions (for potential future modularization)
+window.API_BASE = API_BASE;
+window.apiFetch = apiFetch;
 window.AuthUtils = {
   getToken,
   setToken,
   removeToken,
   getUserFromToken,
-  isLoggedIn,
   getUserRole,
+  getUserDisplayName,
+  isLoggedIn,
   logout,
   validateEmail,
   validatePassword,

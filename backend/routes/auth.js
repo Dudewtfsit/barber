@@ -33,13 +33,13 @@ async (req, res) => {
 
     const password_hash = await bcrypt.hash(password, SALT_ROUNDS);
     const result = await pool.query(
-      'INSERT INTO users (name, email, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING id, email, role',
+      'INSERT INTO users (name, email, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING id, name, email, role',
       [name, email, password_hash, role]
     );
 
     const user = result.rows[0];
     // Issue JWT so client can be logged in immediately
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+    const token = jwt.sign({ id: user.id, name: user.name, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
     res.status(201).json({ user, token });
   } catch (err) {
     console.error('Register error:', err);
@@ -62,7 +62,7 @@ async (req, res) => {
 
   const { email, password } = req.body;
   try {
-    const result = await pool.query('SELECT id, email, password_hash, role FROM users WHERE email = $1', [email]);
+    const result = await pool.query('SELECT id, name, email, password_hash, role FROM users WHERE email = $1', [email]);
     const user = result.rows[0];
     if (!user) {
       return res.status(400).json({ message: 'Invalid credentials' });
@@ -72,15 +72,13 @@ async (req, res) => {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
     // Create JWT
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-    res.json({ token });
+    const token = jwt.sign({ id: user.id, name: user.name, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+    res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
-
-module.exports = router;
 
 // Additional profile endpoints
 // Get current user's profile
@@ -94,6 +92,8 @@ router.get('/me', authenticateToken, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+
+module.exports = router;
 
 // Get any user's public profile (barber can view client profiles)
 router.get('/users/:id', authenticateToken, async (req, res) => {

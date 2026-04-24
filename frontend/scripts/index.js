@@ -91,7 +91,12 @@ function setupNavigationEvents() {
 
   document.getElementById('booking-link').addEventListener('click', (e) => {
     e.preventDefault();
-    window.location = AuthUtils.isLoggedIn() ? 'booking.html' : 'login.html';
+    if (!AuthUtils.isLoggedIn()) {
+      window.location = 'login.html';
+      return;
+    }
+
+    window.location = AuthUtils.getUserRole() === 'barber' ? 'barber-dashboard.html' : 'booking.html';
   });
 
   document.getElementById('login-link').addEventListener('click', (e) => {

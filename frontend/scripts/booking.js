@@ -1,15 +1,14 @@
-// scripts/booking.js
 let currentStep = 1;
+let allShops = [];
+let currentServices = [];
 let selectedShop = null;
 let selectedService = null;
 let selectedDateTime = null;
-let allShops = [];
 let socket = null;
 let bookingActivityState = {
   shopSelected: false,
   serviceSelected: false,
-  timeSelected: false,
-  bookingConfirmed: false
+  timeSelected: false
 };
 
 function escapeHtml(value) {
@@ -21,53 +20,36 @@ function escapeHtml(value) {
     .replace(/'/g, '&#039;');
 }
 
-let currentServices = [];
-
-if (!AuthUtils.isLoggedIn()) {
-  window.location = 'login.html';
-} else {
-  initializeBookingSocket();
+function formatDate(value) {
+  return new Date(value).toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric'
+  });
 }
 
-function initializeBookingSocket() {
+function ensureClientAccess() {
+  if (!AuthUtils.isLoggedIn()) {
+    window.location = 'login.html';
+    return false;
+  }
+
+  if (AuthUtils.getUserRole() === 'barber') {
+    window.location = 'barber-dashboard.html';
+    return false;
+  }
+
+  return true;
+}
+
+function initializeSocket() {
   try {
-    const API_BASE = window.API_BASE || (location.hostname === 'localhost' ? 'http://localhost:3002' : 'https://barber-1-ovpr.onrender.com');
-    socket = io(API_BASE, {
+    socket = io(window.API_BASE, {
       auth: { token: AuthUtils.getToken() }
-    });
-
-    socket.on('connect', () => {
-      console.log('Booking socket connected');
-    });
-
-    socket.on('disconnect', () => {
-      console.log('Booking socket disconnected');
     });
   } catch (error) {
     console.warn('Socket initialization failed:', error);
   }
-}
-
-function emitClientActivity(step) {
-  if (!socket || !socket.connected || !selectedShop) return;
-  const user = AuthUtils.getUserFromToken() || {};
-  const clientName = user.name || user.email || 'Client';
-
-  if (step === 'shop' && bookingActivityState.shopSelected) return;
-  if (step === 'service' && bookingActivityState.serviceSelected) return;
-  if (step === 'time' && bookingActivityState.timeSelected) return;
-
-  if (step === 'shop') bookingActivityState.shopSelected = true;
-  if (step === 'service') bookingActivityState.serviceSelected = true;
-  if (step === 'time') bookingActivityState.timeSelected = true;
-
-  socket.emit('client_booking_started', {
-    shopId: selectedShop.id,
-    shopName: selectedShop.name,
-    clientId: user.id,
-    clientName,
-    step
-  });
 }
 
 function updateNavigation() {
@@ -76,54 +58,40 @@ function updateNavigation() {
   const logoutLink = document.getElementById('logout-link');
   const dashboardLink = document.getElementById('dashboard-link');
 
-  if (AuthUtils.isLoggedIn()) {
-    loginLink.style.display = 'none';
-    registerLink.style.display = 'none';
-    logoutLink.style.display = 'inline';
-    dashboardLink.style.display = 'inline';
-    dashboardLink.textContent = AuthUtils.getUserRole() === 'barber' ? 'Barber Dashboard' : 'My Appointments';
-    dashboardLink.onclick = () => window.location = AuthUtils.getUserRole() === 'barber' ? 'barber-dashboard.html' : 'dashboard.html';
-  } else {
-    loginLink.style.display = 'inline';
-    registerLink.style.display = 'inline';
-    logoutLink.style.display = 'none';
-    dashboardLink.style.display = 'none';
-  }
+  loginLink.style.display = 'none';
+  registerLink.style.display = 'none';
+  logoutLink.style.display = 'inline-flex';
+  dashboardLink.style.display = 'inline-flex';
+  dashboardLink.textContent = 'My Appointments';
+  dashboardLink.onclick = () => {
+    window.location = 'dashboard.html';
+  };
 }
 
 function setupNavigationEvents() {
-  document.getElementById('home-link').addEventListener('click', (e) => {
-    e.preventDefault();
+  document.getElementById('home-link').addEventListener('click', (event) => {
+    event.preventDefault();
     window.location = 'index.html';
   });
 
-  document.getElementById('booking-link').addEventListener('click', (e) => {
-    e.preventDefault();
+  document.getElementById('booking-link').addEventListener('click', (event) => {
+    event.preventDefault();
     window.location = 'booking.html';
   });
 
-  document.getElementById('login-link').addEventListener('click', (e) => {
-    e.preventDefault();
-    window.location = 'login.html';
-  });
-
-  document.getElementById('register-link').addEventListener('click', (e) => {
-    e.preventDefault();
-    window.location = 'register.html';
-  });
-
-  document.getElementById('logout-link').addEventListener('click', (e) => {
-    e.preventDefault();
+  document.getElementById('logout-link').addEventListener('click', (event) => {
+    event.preventDefault();
     AuthUtils.logout();
   });
 
   document.getElementById('next-step').addEventListener('click', nextStep);
   document.getElementById('prev-step').addEventListener('click', prevStep);
   document.getElementById('back-to-datetime').addEventListener('click', prevStep);
+  document.getElementById('confirm-booking').addEventListener('click', confirmBooking);
   document.getElementById('booking-shop-search').addEventListener('input', renderShopOptions);
   document.getElementById('booking-shop-sort').addEventListener('change', renderShopOptions);
   document.getElementById('appointment-date').addEventListener('change', loadTimeSlots);
-  document.getElementById('appointment-time').addEventListener('change', updateLiveSummary);
+  document.getElementById('appointment-time').addEventListener('change', handleTimeSelection);
 }
 
 async function loadShops() {
@@ -132,8 +100,7 @@ async function loadShops() {
     renderShopOptions();
     selectStoredShopIfAvailable();
   } catch (error) {
-    console.error('Error:', error);
-    AuthUtils.showError('Error loading shops. Please try again.');
+    AuthUtils.showError(error.message || 'Could not load shops.');
   }
 }
 
@@ -141,35 +108,47 @@ function renderShopOptions() {
   const shopsList = document.getElementById('shops-list');
   const query = document.getElementById('booking-shop-search').value.trim().toLowerCase();
   const sortBy = document.getElementById('booking-shop-sort').value;
-  const shops = allShops
-    .filter(shop => [shop.name, shop.address, shop.city, shop.state, shop.description].filter(Boolean).join(' ').toLowerCase().includes(query))
+  const filteredShops = allShops
+    .filter((shop) => [shop.name, shop.address, shop.city, shop.state, shop.description]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+      .includes(query))
     .sort((a, b) => String(a[sortBy] || '').localeCompare(String(b[sortBy] || '')));
 
-  if (!shops || shops.length === 0) {
-    shopsList.innerHTML = '<p class="empty-state-message">No barber shops available yet.</p>';
+  if (filteredShops.length === 0) {
+    shopsList.innerHTML = '<p class="empty-state-message">No shops match that search yet.</p>';
     return;
   }
 
-  shopsList.innerHTML = '';
-  shops.forEach(shop => {
-    const shopCard = document.createElement('article');
-    shopCard.className = `shop-card enhanced-shop-card ${selectedShop && selectedShop.id === shop.id ? 'selected' : ''}`;
-    const safeName = escapeHtml(shop.name);
-    const safeAddress = escapeHtml([shop.address, shop.city, shop.state].filter(Boolean).join(', '));
-    const safeDescription = escapeHtml(shop.description);
-    const initials = shop.name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase();
-    shopCard.innerHTML = `
-      <div class="shop-card-topline">
-        <span class="shop-avatar">${initials || 'BB'}</span>
-        <span class="status-pill">Open for booking</span>
-      </div>
-      <h3>${safeName}</h3>
-      <p>${safeAddress}</p>
-      ${shop.description ? `<p class="shop-description">${safeDescription}</p>` : '<p class="shop-description">Choose this shop to see services and available times.</p>'}
-      <button class="btn btn-primary" type="button">Select Shop</button>
+  shopsList.innerHTML = filteredShops.map((shop) => {
+    const isSelected = selectedShop && Number(selectedShop.id) === Number(shop.id);
+    const initials = String(shop.name || 'BB')
+      .split(' ')
+      .map((part) => part[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
+
+    return `
+      <article class="shop-card enhanced-shop-card ${isSelected ? 'selected' : ''}" data-shop-id="${shop.id}">
+        <div class="shop-card-topline">
+          <span class="shop-avatar">${initials || 'BB'}</span>
+          <span class="status-pill">${isSelected ? 'Selected' : 'Open for booking'}</span>
+        </div>
+        <h3>${escapeHtml(shop.name)}</h3>
+        <p>${escapeHtml([shop.address, shop.city, shop.state].filter(Boolean).join(', '))}</p>
+        <p class="shop-description">${escapeHtml(shop.description || 'Pick this shop to review services and available times.')}</p>
+        <button class="btn btn-primary" type="button">${isSelected ? 'Selected' : 'Select Shop'}</button>
+      </article>
     `;
-    shopCard.querySelector('button').addEventListener('click', () => selectShop(shop));
-    shopsList.appendChild(shopCard);
+  }).join('');
+
+  shopsList.querySelectorAll('[data-shop-id]').forEach((card) => {
+    card.querySelector('button').addEventListener('click', () => {
+      const shop = allShops.find((item) => String(item.id) === card.dataset.shopId);
+      if (shop) selectShop(shop);
+    });
   });
 }
 
@@ -177,9 +156,27 @@ function selectStoredShopIfAvailable() {
   const selectedShopId = localStorage.getItem('selectedShopId');
   if (!selectedShopId) return;
 
-  const shop = allShops.find(item => String(item.id) === String(selectedShopId));
   localStorage.removeItem('selectedShopId');
-  if (shop) selectShop(shop);
+  const matchedShop = allShops.find((shop) => String(shop.id) === String(selectedShopId));
+  if (matchedShop) {
+    selectShop(matchedShop);
+  }
+}
+
+function emitClientActivity(step) {
+  if (!socket || !socket.connected || !selectedShop) return;
+  if (bookingActivityState[`${step}Selected`]) return;
+
+  bookingActivityState[`${step}Selected`] = true;
+  const user = AuthUtils.getUserFromToken() || {};
+
+  socket.emit('client_booking_started', {
+    shopId: selectedShop.id,
+    shopName: selectedShop.name,
+    clientId: user.id,
+    clientName: user.name || user.email || 'Client',
+    step
+  });
 }
 
 function selectShop(shop) {
@@ -190,41 +187,50 @@ function selectShop(shop) {
   };
   selectedService = null;
   selectedDateTime = null;
-  updateLiveSummary();
+  currentServices = [];
+  bookingActivityState = { shopSelected: false, serviceSelected: false, timeSelected: false };
   emitClientActivity('shop');
+  renderShopOptions();
+  resetDateTimeControls();
+  updateLiveSummary();
   nextStep();
 }
 
 async function loadServices() {
   if (!selectedShop) return;
 
+  const servicesList = document.getElementById('services-list');
+  servicesList.innerHTML = '<p class="form-success">Loading services...</p>';
+
   try {
     currentServices = await apiFetch(`/api/services/${selectedShop.id}`);
-    const servicesList = document.getElementById('services-list');
 
-    if (!currentServices || currentServices.length === 0) {
-      servicesList.innerHTML = '<p class="empty-state-message">No services available at this shop yet.</p>';
+    if (currentServices.length === 0) {
+      servicesList.innerHTML = '<p class="empty-state-message">This shop has not added services yet.</p>';
       return;
     }
 
-    servicesList.innerHTML = `<p class="form-success">Services at ${escapeHtml(selectedShop.name)}</p>`;
-    currentServices.forEach(service => {
-      const serviceCard = document.createElement('div');
-      serviceCard.className = `service-item ${selectedService && selectedService.id === service.id ? 'selected' : ''}`;
-      const safeServiceName = escapeHtml(service.name);
-      serviceCard.innerHTML = `
+    servicesList.innerHTML = currentServices.map((service) => `
+      <article class="service-item ${selectedService && Number(selectedService.id) === Number(service.id) ? 'selected' : ''}">
         <div>
-          <h4>${safeServiceName}</h4>
-          <p>$${service.price} - ${service.duration_minutes} minutes</p>
+          <h4>${escapeHtml(service.name)}</h4>
+          <p>$${Number(service.price).toFixed(2)} • ${service.duration_minutes} minutes</p>
         </div>
-        <button class="btn btn-primary" type="button">Select Service</button>
-      `;
-      serviceCard.querySelector('button').addEventListener('click', () => selectService(service));
-      servicesList.appendChild(serviceCard);
+        <button class="btn btn-primary" type="button" data-service-id="${service.id}">
+          ${selectedService && Number(selectedService.id) === Number(service.id) ? 'Selected' : 'Choose'}
+        </button>
+      </article>
+    `).join('');
+
+    servicesList.querySelectorAll('[data-service-id]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const service = currentServices.find((item) => String(item.id) === button.dataset.serviceId);
+        if (service) selectService(service);
+      });
     });
   } catch (error) {
-    console.error('Error:', error);
-    AuthUtils.showError('Error loading services. Please try again.');
+    servicesList.innerHTML = '<p class="empty-state-message">Could not load services.</p>';
+    AuthUtils.showError(error.message || 'Could not load services.');
   }
 }
 
@@ -232,130 +238,107 @@ function selectService(service) {
   selectedService = {
     id: service.id,
     name: service.name,
-    price: service.price,
-    duration: service.duration_minutes
+    price: Number(service.price),
+    duration: Number(service.duration_minutes)
   };
   selectedDateTime = null;
-  document.getElementById('appointment-date').value = '';
-  document.getElementById('appointment-time').innerHTML = '<option value="">Select a time</option>';
-  updateLiveSummary();
   emitClientActivity('service');
+  resetDateTimeControls();
+  updateLiveSummary();
+  loadServices();
   nextStep();
 }
 
-async function loadTimeSlots() {
+function resetDateTimeControls() {
   const dateInput = document.getElementById('appointment-date');
   const timeSelect = document.getElementById('appointment-time');
   const helper = document.getElementById('slot-helper');
-  const selectedDate = dateInput.value;
+  const today = new Date().toISOString().slice(0, 10);
+
+  dateInput.min = today;
+  dateInput.value = '';
+  timeSelect.innerHTML = '<option value="">Select a time</option>';
+  helper.textContent = selectedService
+    ? 'Choose a date to see live availability.'
+    : 'Choose a service and date to see available slots.';
+}
+
+async function loadTimeSlots() {
+  const date = document.getElementById('appointment-date').value;
+  const timeSelect = document.getElementById('appointment-time');
+  const helper = document.getElementById('slot-helper');
 
   timeSelect.innerHTML = '<option value="">Select a time</option>';
   selectedDateTime = null;
   updateLiveSummary();
-  if (!selectedDate || !selectedShop || !selectedService) return;
 
-  helper.textContent = 'Checking available slots...';
+  if (!selectedShop || !selectedService || !date) return;
+
+  helper.textContent = 'Checking live slots...';
 
   try {
-    const response = await apiFetch(`/api/appointments/slots?shopId=${selectedShop.id}&serviceId=${selectedService.id}&date=${selectedDate}`);
-    const slots = (response.slots || []).map(slot => new Date(slot).toTimeString().slice(0, 5));
+    const response = await apiFetch(`/api/appointments/slots?shopId=${selectedShop.id}&serviceId=${selectedService.id}&date=${date}`);
+    const slots = response.slots || [];
 
     if (slots.length === 0) {
-      helper.textContent = 'No live slots returned, showing standard shop times.';
-      populateFallbackSlots();
+      helper.textContent = 'No slots are available for that date. Try another day.';
       return;
     }
 
-    populateTimeSelect(slots);
-    helper.textContent = `${slots.length} live slots available for this date.`;
-    emitClientActivity('time');
+    timeSelect.innerHTML += slots.map((slot) => {
+      const slotDate = new Date(slot);
+      const timeLabel = slotDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      return `<option value="${slot}">${timeLabel}</option>`;
+    }).join('');
+    helper.textContent = `${slots.length} live slot${slots.length === 1 ? '' : 's'} available.`;
   } catch (error) {
-    console.warn('Live slot lookup failed, using fallback slots:', error);
-    helper.textContent = 'Live slot lookup is unavailable, showing standard shop times.';
-    populateFallbackSlots();
+    helper.textContent = 'Could not load live slots right now.';
+    AuthUtils.showError(error.message || 'Could not load live slots.');
   }
 }
 
-function populateFallbackSlots() {
-  const timeSlots = [];
-  for (let hour = 9; hour <= 18; hour++) {
-    for (let minute = 0; minute < 60; minute += 30) {
-      timeSlots.push(`${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`);
-    }
-  }
-  populateTimeSelect(timeSlots);
+function handleTimeSelection() {
+  const selectedSlot = document.getElementById('appointment-time').value;
+  selectedDateTime = selectedSlot ? { iso: selectedSlot } : null;
+  if (selectedDateTime) emitClientActivity('time');
+  updateLiveSummary();
 }
 
-function populateTimeSelect(slots) {
-  const timeSelect = document.getElementById('appointment-time');
-  timeSelect.innerHTML = '<option value="">Select a time</option>';
-  slots.forEach(slot => {
-    const option = document.createElement('option');
-    option.value = slot;
-    option.textContent = slot;
-    timeSelect.appendChild(option);
-  });
+function calculateEndTime(startIso, durationMinutes) {
+  const end = new Date(new Date(startIso).getTime() + Number(durationMinutes) * 60000);
+  return end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
 function showConfirmation() {
-  const date = document.getElementById('appointment-date').value;
-  const time = document.getElementById('appointment-time').value;
-
-  if (!date || !time) {
-    AuthUtils.showError('Please select both date and time');
+  if (!selectedService || !selectedDateTime) {
+    AuthUtils.showError('Please choose a date and time first.');
     currentStep = 3;
     showStep();
     return;
   }
 
-  selectedDateTime = { date, time };
-  updateLiveSummary();
+  const start = new Date(selectedDateTime.iso);
   const summary = document.getElementById('booking-summary');
-  const endTime = calculateEndTime(time, selectedService.duration);
-
   summary.innerHTML = `
     <div class="booking-summary">
       <p><strong>Shop:</strong> ${escapeHtml(selectedShop.name)}</p>
-      <p><strong>Address:</strong> ${escapeHtml(selectedShop.address || 'Address not listed')}</p>
+      <p><strong>Address:</strong> ${escapeHtml(selectedShop.address)}</p>
       <p><strong>Service:</strong> ${escapeHtml(selectedService.name)}</p>
-      <p><strong>Price:</strong> $${selectedService.price}</p>
-      <p><strong>Date:</strong> ${new Date(date).toLocaleDateString()}</p>
-      <p><strong>Time:</strong> ${time} - ${endTime}</p>
+      <p><strong>Price:</strong> $${selectedService.price.toFixed(2)}</p>
+      <p><strong>Date:</strong> ${formatDate(start)}</p>
+      <p><strong>Time:</strong> ${start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} - ${calculateEndTime(selectedDateTime.iso, selectedService.duration)}</p>
     </div>
   `;
 }
 
-function calculateEndTime(startTime, durationMinutes) {
-  const [hours, minutes] = startTime.split(':').map(Number);
-  const totalMinutes = hours * 60 + minutes + Number(durationMinutes || 0);
-  const endHours = Math.floor(totalMinutes / 60);
-  const endMinutes = totalMinutes % 60;
-  return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
-}
-
-document.getElementById('confirm-booking').addEventListener('click', async () => {
+async function confirmBooking() {
   if (!selectedShop || !selectedService || !selectedDateTime) {
-    AuthUtils.showError('Please complete all booking steps');
+    AuthUtils.showError('Please complete all booking steps.');
     return;
   }
 
-  const userRole = AuthUtils.getUserRole();
-  const token = AuthUtils.getToken();
-  const startTime = `${selectedDateTime.date}T${selectedDateTime.time}:00`;
   const confirmBtn = document.getElementById('confirm-booking');
-
-  if (!token) {
-    AuthUtils.showError('Not authenticated. Please log in again.');
-    window.location = 'login.html';
-    return;
-  }
-
-  if (userRole !== 'client') {
-    AuthUtils.showError(`Invalid role for booking. You are logged in as: ${userRole}. Please log in as a client.`);
-    return;
-  }
-
-  AuthUtils.setLoading(confirmBtn, true);
+  AuthUtils.setLoading(confirmBtn, true, 'Confirming...');
 
   try {
     await apiFetch('/api/appointments/book', {
@@ -363,38 +346,46 @@ document.getElementById('confirm-booking').addEventListener('click', async () =>
       body: JSON.stringify({
         shopId: selectedShop.id,
         serviceId: selectedService.id,
-        startTime
+        startTime: selectedDateTime.iso
       })
     });
+
+    const user = AuthUtils.getUserFromToken() || {};
     if (socket && socket.connected) {
-      const user = AuthUtils.getUserFromToken() || {};
       socket.emit('client_booking_confirmed', {
         shopId: selectedShop.id,
         shopName: selectedShop.name,
         clientId: user.id,
         clientName: user.name || user.email || 'Client',
         serviceName: selectedService.name,
-        startTime
+        startTime: selectedDateTime.iso
       });
     }
-    AuthUtils.showSuccess('Appointment booked successfully! Redirecting...');
-    setTimeout(() => window.location = 'dashboard.html', 1500);
+
+    AuthUtils.showSuccess('Appointment booked successfully.');
+    setTimeout(() => {
+      window.location = 'dashboard.html';
+    }, 900);
   } catch (error) {
-    console.error('Error booking:', error);
-    AuthUtils.showError(error.message || 'Booking failed. Please try again.');
+    AuthUtils.showError(error.message || 'Booking failed.');
   } finally {
     AuthUtils.setLoading(confirmBtn, false);
   }
-});
+}
 
 function nextStep() {
   if (currentStep === 1 && !selectedShop) {
-    AuthUtils.showError('Please select a barber shop');
+    AuthUtils.showError('Please select a shop first.');
     return;
   }
 
   if (currentStep === 2 && !selectedService) {
-    AuthUtils.showError('Please select a service');
+    AuthUtils.showError('Please choose a service first.');
+    return;
+  }
+
+  if (currentStep === 3 && !selectedDateTime) {
+    AuthUtils.showError('Please choose a date and time first.');
     return;
   }
 
@@ -410,49 +401,49 @@ function prevStep() {
   showStep();
 }
 
-function showStep() {
-  const steps = ['shop-selection', 'service-selection', 'datetime-selection', 'confirmation'];
-  steps.forEach((stepId, index) => {
-    document.getElementById(stepId).style.display = currentStep === index + 1 ? 'block' : 'none';
-  });
+function updateNavigationButtons() {
+  const nav = document.querySelector('.booking-navigation');
+  const prevBtn = document.getElementById('prev-step');
+  const nextBtn = document.getElementById('next-step');
 
+  nav.style.display = currentStep === 1 || currentStep === 4 ? 'none' : 'flex';
+  prevBtn.style.display = currentStep > 1 ? 'inline-flex' : 'none';
+  nextBtn.style.display = currentStep < 4 ? 'inline-flex' : 'none';
+}
+
+function updateProgress() {
+  document.querySelectorAll('[data-progress-step]').forEach((item) => {
+    item.classList.toggle('active', Number(item.dataset.progressStep) <= currentStep);
+  });
+}
+
+function showStep() {
+  const sections = ['shop-selection', 'service-selection', 'datetime-selection', 'confirmation'];
+  sections.forEach((sectionId, index) => {
+    document.getElementById(sectionId).style.display = currentStep === index + 1 ? 'block' : 'none';
+  });
   updateNavigationButtons();
   updateProgress();
 }
 
-function updateNavigationButtons() {
-  const prevBtn = document.getElementById('prev-step');
-  const nextBtn = document.getElementById('next-step');
-  const navigation = document.querySelector('.booking-navigation');
-
-  navigation.style.display = currentStep === 1 || currentStep === 4 ? 'none' : 'flex';
-  prevBtn.style.display = currentStep > 1 ? 'inline' : 'none';
-  nextBtn.style.display = currentStep < 4 ? 'inline' : 'none';
-}
-
-function updateProgress() {
-  document.querySelectorAll('[data-progress-step]').forEach(step => {
-    step.classList.toggle('active', Number(step.dataset.progressStep) <= currentStep);
-  });
-}
-
 function updateLiveSummary() {
-  const date = document.getElementById('appointment-date')?.value || selectedDateTime?.date;
-  const time = document.getElementById('appointment-time')?.value || selectedDateTime?.time;
   const summary = document.getElementById('live-summary');
-  if (!summary) return;
+  const start = selectedDateTime ? new Date(selectedDateTime.iso) : null;
 
   summary.innerHTML = `
     <div class="summary-line"><span>Shop</span><strong>${selectedShop ? escapeHtml(selectedShop.name) : 'Not selected'}</strong></div>
     <div class="summary-line"><span>Service</span><strong>${selectedService ? escapeHtml(selectedService.name) : 'Not selected'}</strong></div>
-    <div class="summary-line"><span>Date</span><strong>${date ? new Date(date).toLocaleDateString() : 'Not selected'}</strong></div>
-    <div class="summary-line"><span>Time</span><strong>${time || 'Not selected'}</strong></div>
-    <div class="summary-line"><span>Total</span><strong>$${selectedService ? selectedService.price : '0'}</strong></div>
+    <div class="summary-line"><span>Date</span><strong>${start ? formatDate(start) : 'Not selected'}</strong></div>
+    <div class="summary-line"><span>Time</span><strong>${start ? start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Not selected'}</strong></div>
+    <div class="summary-line"><span>Total</span><strong>$${selectedService ? selectedService.price.toFixed(2) : '0.00'}</strong></div>
   `;
 }
 
-updateNavigation();
-setupNavigationEvents();
-showStep();
-loadShops();
-updateLiveSummary();
+if (ensureClientAccess()) {
+  updateNavigation();
+  setupNavigationEvents();
+  initializeSocket();
+  showStep();
+  updateLiveSummary();
+  loadShops();
+}

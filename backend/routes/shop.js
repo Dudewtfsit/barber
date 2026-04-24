@@ -55,6 +55,81 @@ router.get('/my-shop', authenticateToken, authorizeRoles('barber'), async (req, 
   }
 });
 
+router.get('/my-hours', authenticateToken, authorizeRoles('barber'), async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    const shopResult = await pool.query('SELECT id FROM barber_shops WHERE owner_id = $1', [userId]);
+    if (shopResult.rows.length === 0) {
+      return res.json([]);
+    }
+
+    const hoursResult = await pool.query(
+      'SELECT id, day_of_week, start_hour, end_hour FROM working_hours WHERE shop_id = $1 ORDER BY day_of_week',
+      [shopResult.rows[0].id]
+    );
+
+    res.json(hoursResult.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+router.put('/hours',
+  authenticateToken,
+  authorizeRoles('barber'),
+  async (req, res) => {
+    const userId = req.user.id;
+    const { hours } = req.body;
+
+    if (!Array.isArray(hours)) {
+      return res.status(400).json({ message: 'Hours must be an array' });
+    }
+
+    try {
+      const shopResult = await pool.query('SELECT id FROM barber_shops WHERE owner_id = $1', [userId]);
+      if (shopResult.rows.length === 0) {
+        return res.status(400).json({ message: 'Create a shop first' });
+      }
+
+      const shopId = shopResult.rows[0].id;
+      await pool.query('DELETE FROM working_hours WHERE shop_id = $1', [shopId]);
+
+      for (const entry of hours) {
+        const dayOfWeek = Number(entry.day_of_week);
+        const startHour = entry.start_hour;
+        const endHour = entry.end_hour;
+
+        if (
+          Number.isNaN(dayOfWeek) ||
+          dayOfWeek < 0 ||
+          dayOfWeek > 6 ||
+          !startHour ||
+          !endHour
+        ) {
+          continue;
+        }
+
+        await pool.query(
+          'INSERT INTO working_hours (shop_id, day_of_week, start_hour, end_hour) VALUES ($1, $2, $3, $4)',
+          [shopId, dayOfWeek, startHour, endHour]
+        );
+      }
+
+      const hoursResult = await pool.query(
+        'SELECT id, day_of_week, start_hour, end_hour FROM working_hours WHERE shop_id = $1 ORDER BY day_of_week',
+        [shopId]
+      );
+
+      res.json({ message: 'Working hours updated', hours: hoursResult.rows });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: 'Server error' });
+    }
+  }
+);
+
 // Get shop by ID (public for clients)
 router.get('/:shopId', async (req, res) => {
   const { shopId } = req.params;

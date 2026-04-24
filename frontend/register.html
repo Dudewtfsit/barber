@@ -1,41 +1,47 @@
-<!-- register.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Register - Barber Booking</title>
+  <title>Register | BarberBook</title>
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
-  <div class="container">
-    <div class="card">
-      <h2>Register</h2>
-      <form id="registerForm">
-        <div class="form-group">
-          <label for="name">Name:</label>
-          <input type="text" id="name" required>
-        </div>
-        <div class="form-group">
-          <label for="email">Email:</label>
-          <input type="email" id="email" required>
-        </div>
-        <div class="form-group">
-          <label for="password">Password:</label>
-          <input type="password" id="password" required>
-        </div>
-        <div class="form-group">
-          <label for="role">Role:</label>
-          <select id="role" required>
-            <option value="client">Client</option>
-            <option value="barber">Barber</option>
-          </select>
-        </div>
-        <button type="submit" class="btn">Register</button>
-      </form>
-      <p>Already have an account? <a href="login.html">Login here</a></p>
-    </div>
-  </div>
+<body class="auth-shell">
+  <main class="container">
+    <section class="dashboard-hero">
+      <div>
+        <span class="eyebrow">Join BarberBook</span>
+        <h1>Create an account that fits how you book.</h1>
+        <p>Clients get fast booking and appointment history. Barbers get shop setup, live activity, and appointment control.</p>
+      </div>
+      <div class="card">
+        <h2>Create account</h2>
+        <form id="registerForm" class="dashboard-form">
+          <div class="form-group">
+            <label for="name">Name</label>
+            <input type="text" id="name" required>
+          </div>
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" required>
+          </div>
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" required>
+          </div>
+          <div class="form-group">
+            <label for="role">I am signing up as</label>
+            <select id="role" required>
+              <option value="client">Client</option>
+              <option value="barber">Barber</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary">Create account</button>
+        </form>
+        <p>Already registered? <a href="login.html">Login here</a></p>
+      </div>
+    </section>
+  </main>
   <script src="scripts/utils.js"></script>
   <script src="scripts/auth.js"></script>
 </body>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard - BarberBook</title>
+  <title>My Appointments | BarberBook</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -11,107 +11,58 @@
     <div class="nav-container">
       <h1 class="nav-logo">BarberBook</h1>
       <div class="nav-links" id="nav-links">
-        <a href="#" id="home-link">Home</a>
-        <a href="#" id="booking-link">Book Appointment</a>
-        <a href="#" id="dashboard-link" style="display: none;">Dashboard</a>
-        <a href="#" id="login-link">Login</a>
-        <a href="#" id="register-link">Register</a>
-        <a href="#" id="logout-link" style="display: none;">Logout</a>
+        <a href="index.html">Home</a>
+        <a href="booking.html">Book Appointment</a>
+        <a href="dashboard.html" id="dashboard-link">My Appointments</a>
+        <a href="#" id="logout-link">Logout</a>
       </div>
     </div>
   </nav>
 
-  <div class="container">
-    <!-- Barber Dashboard -->
-    <div id="barber-dashboard" style="display: none;">
-      <div class="card">
-        <h2>Barber Dashboard</h2>
-
-        <div id="shop-section">
-          <h3>Your Shop</h3>
-          <form id="shopForm">
-            <div class="form-group">
-              <label for="shop-name">Shop Name:</label>
-              <input type="text" id="shop-name" required>
-            </div>
-            <div class="form-group">
-              <label for="shop-address">Address:</label>
-              <input type="text" id="shop-address" required>
-            </div>
-            <div class="form-group">
-              <label for="shop-city">City:</label>
-              <input type="text" id="shop-city" required>
-            </div>
-            <div class="form-group">
-              <label for="shop-state">State:</label>
-              <input type="text" id="shop-state" required>
-            </div>
-            <button type="submit" class="btn">Save Shop</button>
-          </form>
-        </div>
-
-        <div id="dashboard-stats" style="margin-top:20px; display:flex; gap:12px;">
-          <div class="stat-card">
-            <h4 id="stat-today-count">0</h4>
-            <p>Today's appointments</p>
-          </div>
-          <div class="stat-card">
-            <h4 id="stat-upcoming">0</h4>
-            <p>Upcoming</p>
-          </div>
-          <div class="stat-card">
-            <h4 id="stat-revenue">$0</h4>
-            <p>Estimated revenue</p>
-          </div>
-        </div>
-
-        <div id="services-section">
-          <h3>Your Services</h3>
-          <form id="serviceForm">
-            <div class="form-group">
-              <label for="service-name">Service Name:</label>
-              <input type="text" id="service-name" required>
-            </div>
-            <div class="form-group">
-              <label for="service-price">Price:</label>
-              <input type="number" id="service-price" step="0.01" required>
-            </div>
-            <div class="form-group">
-              <label for="service-duration">Duration (minutes):</label>
-              <input type="number" id="service-duration" required>
-            </div>
-            <button type="submit" class="btn">Add Service</button>
-          </form>
-          <div id="services-list"></div>
-        </div>
-
-        <div id="appointments-section">
-          <h3>Today's Appointments</h3>
-          <div id="appointments-list"></div>
-        </div>
+  <main class="container dashboard-shell">
+    <section class="dashboard-hero">
+      <div>
+        <span class="eyebrow">Client dashboard</span>
+        <h1 id="dashboard-title">Your upcoming visits</h1>
+        <p>See what is booked, cancel what you no longer need, and keep your schedule clean.</p>
       </div>
-    </div>
+      <a class="btn btn-primary" href="booking.html">Book another cut</a>
+    </section>
 
-    <!-- Client profile modal -->
-    <div id="client-modal" class="modal" style="display:none; position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); background:white; padding:20px; border-radius:8px; box-shadow:0 4px 20px rgba(0,0,0,.15); z-index:9999;">
-      <button id="close-client-modal" style="float:right">Close</button>
-      <h3 id="client-name">Client</h3>
-      <p id="client-email"></p>
-      <div id="client-meta"></div>
-    </div>
+    <section class="stats-grid compact-stats">
+      <article class="stat-card">
+        <h3>Upcoming</h3>
+        <div class="number" id="client-upcoming-count">0</div>
+      </article>
+      <article class="stat-card">
+        <h3>Completed</h3>
+        <div class="number" id="client-completed-count">0</div>
+      </article>
+      <article class="stat-card">
+        <h3>Saved spend</h3>
+        <div class="number" id="client-total-spend">$0.00</div>
+      </article>
+    </section>
 
-    <!-- Client Dashboard -->
-    <div id="client-dashboard" style="display: none;">
-      <div class="card">
-        <h2>My Appointments</h2>
-        <div id="client-appointments-list"></div>
+    <section class="card">
+      <div class="section-heading split-heading">
+        <div>
+          <span class="eyebrow">Appointments</span>
+          <h2>Everything in one place</h2>
+        </div>
+        <select id="appointment-filter" class="compact-select">
+          <option value="all">All statuses</option>
+          <option value="booked">Booked</option>
+          <option value="done">Done</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
       </div>
-    </div>
-  </div>
+      <div id="client-appointments-list" class="appointments-stack"></div>
+    </section>
+  </main>
 
   <script src="scripts/utils.js"></script>
   <script src="scripts/auth.js"></script>
-  <script src="/socket.io/socket.io.js"></script>
   <script src="scripts/dashboard.js"></script>
 </body>
 </html>
