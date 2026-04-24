@@ -179,7 +179,7 @@ function initializeClientDashboard() {
 // Load shop info for barber
 async function loadShop() {
   try {
-    const shop = await apiFetch('/api/shop');
+    const shop = await apiFetch('/api/shop/my-shop');
     document.getElementById('shop-name').value = shop.name || '';
     document.getElementById('shop-address').value = shop.address || '';
     document.getElementById('shop-city').value = shop.city || '';
@@ -196,7 +196,7 @@ async function loadShop() {
 // Load services for barber
 async function loadServices() {
   try {
-    const services = await apiFetch('/api/services');
+    const services = await apiFetch('/api/services/my-services');
     const list = document.getElementById('services-list');
     if (list) {
       list.innerHTML = '';

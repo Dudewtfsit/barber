@@ -42,6 +42,11 @@ io.on('connection', (socket) => {
   socket.on('join', (room) => {
     socket.join(room);
   });
+  socket.on('join_barber_room', (payload) => {
+    if (payload && payload.barberId) {
+      socket.join(`barber_${payload.barberId}`);
+    }
+  });
   socket.on('disconnect', () => {
     console.log('Socket disconnected:', socket.id);
   });

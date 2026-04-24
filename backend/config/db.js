@@ -73,4 +73,11 @@ async function init() {
   }
 }
 
-module.exports = { init, get: () => exported };
+async function query(sql, params = []) {
+  if (!exported.ready || !exported.pool) {
+    throw new Error('Database not initialized');
+  }
+  return exported.pool.query(sql, params);
+}
+
+module.exports = { init, get: () => exported, query };

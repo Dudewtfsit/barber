@@ -58,7 +58,7 @@ function initializeSocket() {
     document.getElementById('online-status').style.color = '#27ae60';
     
     // Join barber-specific room
-    socket.emit('join_barber_room', { barberId: currentUser.id });
+    socket.emit('join', `barber_${currentUser.id}`);
   });
 
   socket.on('disconnect', () => {
@@ -211,6 +211,9 @@ function createAppointmentCard(apt) {
     `;
   }
 
+  const clientName = apt.client_name || `Client ${apt.client_id}`;
+  const serviceName = apt.service_name || `Service ${apt.service_id}`;
+
   return `
     <div class="appointment-card ${apt.status}">
       <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -220,8 +223,8 @@ function createAppointmentCard(apt) {
         </div>
         ${statusBadge}
       </div>
-      <div class="appointment-client">👤 Client ID: ${apt.client_id}</div>
-      <div class="appointment-service">💼 Service ID: ${apt.service_id}</div>
+      <div class="appointment-client">👤 ${clientName}</div>
+      <div class="appointment-service">💼 ${serviceName}</div>
       ${actionButtons}
     </div>
   `;
@@ -432,8 +435,8 @@ async function saveShop() {
 // Load and display shop hours
 async function loadShopHours() {
   try {
-    const response = await apiFetch('/api/shop/hours');
-    const hours = response || {};
+    const response = await apiFetch('/api/shop/hours/my-hours');
+    const hours = response || [];
     
     const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     let hoursForm = '';
